@@ -1,22 +1,13 @@
 {
   "hooks": {
-    "PostToolUse": [
+    "PreToolUse": [
       {
-        "matcher": "Edit|Write|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python .claude/hooks/registrar-mudanca.py"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
             "command": "python .claude/hooks/verificar-claude-md.py",
+            "if": "Bash(git commit *)",
             "statusMessage": "Conferindo o CLAUDE.md"
           }
         ]

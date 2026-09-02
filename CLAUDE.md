@@ -46,10 +46,9 @@ Regra do fluxo: a fase de proposta **não edita código de projeto**. Ao propor,
 
 ## Hooks
 
-`.claude/settings.json` liga dois hooks:
+`.claude/settings.json` liga um hook `PreToolUse` em `Bash`, filtrado por `if: "Bash(git commit *)"`, que roda `.claude/hooks/verificar-claude-md.py`.
 
-- `PostToolUse` em `Edit|Write|NotebookEdit|Bash` roda `.claude/hooks/registrar-mudanca.py`, que anota em `.claude/tmp/claude-md-pendente-<sessão>.txt` cada arquivo criado, alterado ou excluído. Edições no próprio `CLAUDE.md` e comandos que só leem não entram.
-- `Stop` roda `.claude/hooks/verificar-claude-md.py`, que lê esse registro, apaga o arquivo e devolve `decision: block` cobrando a revisão do `CLAUDE.md`.
+O script lê `git diff --cached`. Libera o commit quando o índice está vazio ou já contém o `CLAUDE.md`; senão nega uma vez, listando os arquivos que vão para o commit, e grava a marca do índice em `.claude/tmp/claude-md-conferido-<sessão>.txt`. A segunda tentativa com o mesmo índice passa, então o gate não entra em laço.
 
 O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura e fluxo. Não recebe motivo de mudança, comparação com o que era antes nem histórico.
 
