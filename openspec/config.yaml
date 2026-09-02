@@ -1,23 +1,37 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Projeto: kanban (com.william:kanban), aplicação Spring Boot para gestão de quadros kanban.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Stack, comandos, convenções de código e estado do projeto estão no CLAUDE.md, na raiz do
+  repositório. Leia esse arquivo antes de gerar qualquer artefato; o que segue aqui vale só
+  para a escrita dos artefatos.
+
+  Escrita dos artefatos (vale para proposal, design, tasks e specs):
+  - O artefato descreve exatamente o que vai ser implementado nesta change, e nada mais.
+  - Não registre justificativa de decisão, alternativa descartada nem comparação de abordagens. Única exceção: no design, a decisão tomada vem com a consequência dela para quem implementa, em uma ou duas frases, nunca o caminho até a decisão.
+  - Não mencione trabalho futuro, ideia adiada, próximos passos nem o que "vira spec própria". Se algo fica de fora, liste só o nome, em uma linha, sem explicação.
+  - Não descreva o estado anterior do projeto, o que existia antes nem o que foi removido.
+  - Sem hedge: nada de "talvez", "poderia", "provavelmente", "por enquanto". Toda frase afirma um comportamento definido.
+  - Cada fato aparece em um lugar só, dentro do artefato e entre artefatos. O design e o tasks não repetem o que a proposal já diz: apontam para ela.
+
+  Diagramas:
+  - Prefira diagrama Mermaid a texto sempre que o conteúdo for fluxo, sequência de chamadas, máquina de estados, modelo de dados ou relação entre componentes.
+  - O diagrama substitui a prosa que o descreveria, não convive com ela. Depois do diagrama, escreva só o que ele não mostra.
+  - Use o tipo certo: flowchart para fluxo e decisão, sequenceDiagram para troca entre camadas ou serviços, erDiagram para tabelas e relações, stateDiagram-v2 para estados, classDiagram para estrutura de tipos.
+  - Um diagrama por ideia, com no máximo cerca de 12 nós. Se passar disso, divida em dois.
+  - Rótulos em português, curtos, com o nome real do endpoint, tabela, classe ou coluna.
+  - Todo bloco fica entre ```mermaid e ```.
+
+rules:
+  proposal:
+    - Why: no máximo três frases, só o problema que motiva a change. Sem contexto histórico e sem antecipar a solução.
+    - What Changes: bullets, um comportamento observável por bullet, frase direta. Sem parágrafo de abertura e sem repetir o que já está em outro bullet.
+    - Impact: só fatos verificáveis (pacotes, endpoints, dependências, arquivos de configuração, migrations). Nenhuma linha de racional.
+    - Em What Changes, use um diagrama Mermaid no lugar do texto sempre que a change tiver fluxo de requisição, mudança de estado ou tabela nova. Os bullets ficam só com o que o diagrama não expressa (códigos de status, regras de validação, formato de campo).
+  design:
+    - Toda decisão de estrutura vem com um diagrama Mermaid: componentes e suas chamadas, sequência do caso principal, modelo de dados. O texto ao lado só acrescenta o que o desenho não carrega.
+    - Nada de diagrama decorativo: se o desenho não muda o entendimento de quem vai implementar, corte.
 
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.

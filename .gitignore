@@ -1,4 +1,3 @@
-HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -31,3 +30,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### OpenSpec UI (estado local) ###
+.openspec-ui/
+
+### Temporarios do Claude Code ###
+.claude/tmp/

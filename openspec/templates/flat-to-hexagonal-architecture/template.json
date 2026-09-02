@@ -1,0 +1,28 @@
+{
+  "id": "flat-to-hexagonal-architecture",
+  "title": "Migrate a flat/layered codebase to hexagonal architecture",
+  "category": "architecture-migration",
+  "version": "1.0.0",
+  "summary": "Introduces domain/ports/adapters layering so business logic no longer directly imports framework, database, or transport code.",
+  "variables": [
+    {
+      "name": "domainModuleName",
+      "prompt": "Name for the new domain/business-logic module or package (e.g. domain)",
+      "default": "domain"
+    },
+    {
+      "name": "portsModuleName",
+      "prompt": "Name for the new ports (interfaces) module or package (e.g. ports)",
+      "default": "ports"
+    },
+    {
+      "name": "adaptersModuleName",
+      "prompt": "Name for the new adapters (implementations) module or package (e.g. adapters)",
+      "default": "adapters"
+    }
+  ],
+  "forkedFrom": {
+    "id": "flat-to-hexagonal-architecture",
+    "version": "1.0.0"
+  }
+}
