@@ -46,7 +46,7 @@ Nenhuma.
 
 - **Código**: pacote `com.william.kanban.account`, com controller, service, repository e entidade.
 - **API**: os dois endpoints entram no OpenAPI exposto pelo springdoc.
-- **Dependências**: `spring-boot-starter-data-jpa`, driver do Postgres, `flyway-core`, `flyway-database-postgresql` e `spring-security-crypto`; em escopo de teste, `spring-boot-testcontainers`, `org.testcontainers:postgresql` e `org.testcontainers:junit-jupiter`, com versões vindas do BOM do parent.
+- **Dependências**: `spring-boot-starter-data-jpa`, driver do Postgres, `spring-boot-flyway`, `flyway-core`, `flyway-database-postgresql` e `spring-security-crypto`; em escopo de teste, `spring-boot-testcontainers`, `org.testcontainers:testcontainers-postgresql` e `org.testcontainers:testcontainers-junit-jupiter`, com versões vindas do BOM do parent.
 - **Configuração**: `application.properties` passa a exigir dados de conexão do Postgres; os testes recebem a conexão de um container declarado com `@ServiceConnection`.
 - **Testes**: `./mvnw test` passa a exigir Docker, porque `KanbanApplicationTests` é `@SpringBootTest` e sobe o container.
 - **Migrations**: `V1__create_accounts.sql`, escrita para Postgres.
