@@ -160,8 +160,8 @@
 
 ## 3. Ciclo: normalização do email e hash da senha
 
-- [ ] 3.1 Acrescentar o teste que envia o email `"Ana@Exemplo.com"` e espera `"ana@exemplo.com"` na coluna `email` e na resposta; verificar que falha porque o email é gravado como veio
-- [ ] 3.2 Normalizar o email no `AccountService`; verificar que o teste 3.1 fica verde
+- [x] 3.1 Acrescentar o teste que envia o email `"Ana@Exemplo.com"` e espera `"ana@exemplo.com"` na coluna `email` e na resposta; verificar que falha porque o email é gravado como veio
+- [x] 3.2 Normalizar o email no `AccountService`; verificar que o teste 3.1 fica verde
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/AccountService.java
@@ -171,8 +171,8 @@
      }
 ```
 
-- [ ] 3.3 Acrescentar os testes que exigem `password_hash` validando contra a senha original e diferente dela, e que a resposta não traz campo de senha; verificar que o primeiro falha com a senha gravada em texto puro
-- [ ] 3.4 Aplicar `BCryptPasswordEncoder` no `AccountService`; verificar que os testes 3.3 ficam verdes
+- [x] 3.3 Acrescentar os testes que exigem `password_hash` validando contra a senha original e diferente dela, e que a resposta não traz campo de senha; verificar que o primeiro falha com a senha gravada em texto puro
+- [x] 3.4 Aplicar `BCryptPasswordEncoder` no `AccountService`; verificar que os testes 3.3 ficam verdes
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/AccountService.java
@@ -185,12 +185,12 @@
      }
 ```
 
-- [ ] 3.5 Acrescentar o teste que insere email em maiúsculas direto pelo `JdbcTemplate` e espera erro do banco; verificar que passa pelo `CHECK (email = lower(email))` da migration
+- [x] 3.5 Acrescentar o teste que insere email em maiúsculas direto pelo `JdbcTemplate` e espera erro do banco; verificar que passa pelo `CHECK (email = lower(email))` da migration
 
 ## 4. Ciclo: validação de entrada
 
-- [ ] 4.1 Acrescentar os testes de campo ausente e de email em formato inválido, ambos esperando 400 e nenhuma conta criada; verificar que falham com 500
-- [ ] 4.2 Anotar `CreateAccountRequest` e o parâmetro do controller, e criar o `GlobalExceptionHandler`; verificar que os testes 4.1 ficam verdes
+- [x] 4.1 Acrescentar os testes de campo ausente e de email em formato inválido, ambos esperando 400 e nenhuma conta criada; verificar que falham com 500
+- [x] 4.2 Anotar `CreateAccountRequest` e o parâmetro do controller, e criar o `GlobalExceptionHandler`; verificar que os testes 4.1 ficam verdes
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/CreateAccountRequest.java
@@ -210,8 +210,8 @@
 
 ## 5. Ciclo: unicidade do email
 
-- [ ] 5.1 Acrescentar os testes de email repetido e de email repetido com outra caixa, ambos esperando 409; verificar que falham com 500 vindo da violação do índice `ux_accounts_email`
-- [ ] 5.2 Traduzir a violação em conflito no `GlobalExceptionHandler`, restrita ao índice único de email; verificar que os testes 5.1 ficam verdes
+- [x] 5.1 Acrescentar os testes de email repetido e de email repetido com outra caixa, ambos esperando 409; verificar que falham com 500 vindo da violação do índice `ux_accounts_email`
+- [x] 5.2 Traduzir a violação em conflito no `GlobalExceptionHandler`, restrita ao índice único de email; verificar que os testes 5.1 ficam verdes
 
 ```diff
 +++ b/src/main/java/com/william/kanban/shared/GlobalExceptionHandler.java
@@ -221,8 +221,8 @@
 
 ## 6. Ciclo: consulta por id
 
-- [ ] 6.1 Acrescentar o teste de `GET /accounts/{id}` que espera 200 com `id`, `email` e `displayName`; verificar que falha por não existir o endpoint
-- [ ] 6.2 Criar o `findById` no service e no controller; verificar que o teste 6.1 fica verde
+- [x] 6.1 Acrescentar o teste de `GET /accounts/{id}` que espera 200 com `id`, `email` e `displayName`; verificar que falha por não existir o endpoint
+- [x] 6.2 Criar o `findById` no service e no controller; verificar que o teste 6.1 fica verde
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/AccountService.java
@@ -234,8 +234,8 @@
 +    AccountResponse findById(@PathVariable UUID id) { ... }
 ```
 
-- [ ] 6.3 Acrescentar os testes de id inexistente esperando 404 e de id fora do formato uuid esperando 400; verificar que o primeiro falha com 500 e o segundo já passa pelo `ResponseEntityExceptionHandler`
-- [ ] 6.4 Tratar `AccountNotFoundException` no `GlobalExceptionHandler`; verificar que o teste 6.3 fica verde
+- [x] 6.3 Acrescentar os testes de id inexistente esperando 404 e de id fora do formato uuid esperando 400; verificar que o primeiro falha com 500 e o segundo já passa pelo `ResponseEntityExceptionHandler`
+- [x] 6.4 Tratar `AccountNotFoundException` no `GlobalExceptionHandler`; verificar que o teste 6.3 fica verde
 
 ```diff
 +++ b/src/main/java/com/william/kanban/shared/GlobalExceptionHandler.java
@@ -245,6 +245,6 @@
 
 ## 7. Fechamento
 
-- [ ] 7.1 Acrescentar o teste que busca o documento OpenAPI e confirma `POST /accounts` e `GET /accounts/{id}` com seus códigos de resposta; verificar que passa com o que o springdoc já publica
-- [ ] 7.2 Rodar `./mvnw -q verify` com Docker ativo e verificar que a suíte inteira passa
-- [ ] 7.3 Registrar em `CLAUDE.md` a stack de persistência, o pré-requisito de Docker para `./mvnw test` e as variáveis de conexão; verificar que o arquivo descreve o estado atual do projeto após esta change
+- [x] 7.1 Acrescentar o teste que busca o documento OpenAPI e confirma `POST /accounts` e `GET /accounts/{id}` com seus códigos de resposta; verificar que passa com o que o springdoc já publica
+- [x] 7.2 Rodar `./mvnw -q verify` com Docker ativo e verificar que a suíte inteira passa
+- [x] 7.3 Registrar em `CLAUDE.md` a stack de persistência, o pré-requisito de Docker para `./mvnw test` e as variáveis de conexão; verificar que o arquivo descreve o estado atual do projeto após esta change

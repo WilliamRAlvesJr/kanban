@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado do projeto
 
-A change `add-account-management` está em implementação, pelos ciclos de `openspec/changes/add-account-management/tasks.md`. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController` e os records de entrada e saída; `POST /accounts` responde 201 gravando a senha sem hash, que os ciclos seguintes trocam por BCrypt junto com normalização de email, validação, unicidade e consulta por id. Board, coluna e card estão por fazer.
+A capability `account-management` está implementada. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController`, `AccountNotFoundException` e os records `CreateAccountRequest` e `AccountResponse`. `POST /accounts` responde 201 com o email em minúsculas e a senha em hash BCrypt, 400 na entrada inválida e 409 no email repetido; `GET /accounts/{id}` responde 200, 400 no id fora do formato uuid e 404 no id desconhecido. O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exceções em `ProblemDetail`. Board, coluna e card estão por fazer.
 
 ## Stack
 
@@ -12,6 +12,7 @@ A change `add-account-management` está em implementação, pelos ciclos de `ope
 - `spring-boot-starter-webmvc` para REST e `springdoc-openapi-starter-webmvc-ui` 3.1.0 para OpenAPI e Swagger UI
 - Persistência em Postgres com `spring-boot-starter-data-jpa`; schema versionado por Flyway em `src/main/resources/db/migration`, com `spring.jpa.hibernate.ddl-auto=validate`
 - Em Spring Boot 4 a autoconfiguração de cada integração vem em módulo próprio: `flyway-core` sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`
+- `spring-boot-starter-validation` para as anotações de Bean Validation e `spring-security-crypto` pelo `BCryptPasswordEncoder`, sem cadeia de filtros de segurança
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
 
 ## Comandos
@@ -70,4 +71,5 @@ O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura 
 - `pom.xml` mantém `<license>`, `<developers>` e `<scm>` vazios de propósito, para anular a herança do parent POM
 - `.openspec-ui/` e `.claude/tmp/` estão no `.gitignore` (estado local da UI do OpenSpec e temporários do Claude Code)
 - Código em inglês: pacote, classe, método, variável, coluna, tabela, endpoint e campo de JSON
+- Campo de JSON em snake_case e campo Java em camelCase: o record leva `@JsonProperty("display_name")` onde o nome tem mais de uma palavra, e a anotação vale tanto para o Jackson 3 da aplicação quanto para o schema que o springdoc gera com Jackson 2
 - Prosa em português do Brasil, com acentuação correta: artefatos do OpenSpec, documentos do projeto, comentário e Javadoc, mensagem de commit
