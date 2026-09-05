@@ -14,10 +14,14 @@ A capability `account-management` está implementada. O pacote `com.william.kanb
 - Em Spring Boot 4 a autoconfiguração de cada integração vem em módulo próprio: `flyway-core` sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`
 - `spring-boot-starter-validation` para as anotações de Bean Validation e `spring-security-crypto` pelo `BCryptPasswordEncoder`, sem cadeia de filtros de segurança
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
+- Teste de mutação pelo `pitest-maven` 1.30.0 com `pitest-junit5-plugin` 1.2.3, fora do ciclo padrão: `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` gera `target/pit-reports/` e reprova abaixo de 80% de mutantes mortos
+- Cobertura pelo `jacoco-maven-plugin`: a fase `test` gera o relatório em `target/site/jacoco/` e roda o `check`, que reprova o build abaixo de 80% de instrução ou de branch; `KanbanApplication` fica fora da medição
 
 ## Comandos
 
-Use o wrapper (`./mvnw` no bash, `.\mvnw.cmd` no PowerShell); não há Maven global garantido.
+Use o wrapper `./mvnw`, no Git Bash: é o shell do projeto, e não há Maven global garantido.
+No Git Bash a forma `.\mvnw.cmd` falha com `.mvnw.cmd: command not found`, porque a barra
+invertida escapa o `m`.
 
 `./mvnw test` exige Docker: os testes de contexto sobem um Postgres em container.
 
@@ -35,6 +39,7 @@ export KANBAN_DB_PASSWORD=kanban
 ./mvnw test                     # todos os testes
 ./mvnw test -Dtest=KanbanApplicationTests            # uma classe
 ./mvnw test -Dtest=KanbanApplicationTests#contextLoads   # um teste
+./mvnw test -Djacoco.skip=true  # testes sem medir cobertura
 ./mvnw clean package            # jar em target/
 ./mvnw -q verify                # build completo silencioso
 ```

@@ -14,6 +14,8 @@ import com.william.kanban.TestcontainersConfiguration;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -102,13 +104,25 @@ class AccountApiTest {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
-	@Test
-	void rejectsMissingField() throws Exception {
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"""
+					{"display_name": "Ana", "password": "segredo"}""",
+			"""
+					{"email": "ana@exemplo.com", "password": "segredo"}""",
+			"""
+					{"email": "ana@exemplo.com", "display_name": "Ana"}""",
+			"""
+					{"email": "", "display_name": "Ana", "password": "segredo"}""",
+			"""
+					{"email": "ana@exemplo.com", "display_name": "", "password": "segredo"}""",
+			"""
+					{"email": "ana@exemplo.com", "display_name": "Ana", "password": ""}"""
+	})
+	void rejectsPayloadWithRequiredFieldMissingOrBlank(String body) throws Exception {
 		mockMvc.perform(post("/accounts")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"display_name": "Ana", "password": "segredo"}
-								"""))
+						.content(body))
 				.andExpect(status().isBadRequest());
 
 		assertThat(countAccounts()).isZero();
