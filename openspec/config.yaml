@@ -14,6 +14,7 @@ context: |
   - Não descreva o estado anterior do projeto, o que existia antes nem o que foi removido.
   - Sem hedge: nada de "talvez", "poderia", "provavelmente", "por enquanto". Toda frase afirma um comportamento definido.
   - Cada fato aparece em um lugar só, dentro do artefato e entre artefatos. O design e o tasks não repetem o que a proposal já diz: apontam para ela.
+  - O CLAUDE.md é um desses lugares: não repita no artefato stack, comando, convenção, propriedade de configuração nem estado do projeto que ele já registra.
 
   Diagramas:
   - Prefira diagrama Mermaid a texto sempre que o conteúdo for fluxo, sequência de chamadas, máquina de estados, modelo de dados ou relação entre componentes.
@@ -47,6 +48,9 @@ rules:
       Then a resposta é 201 com id, email e display_name
       And o header Location aponta para /accounts/{id}
       ```
+    - 'Seção `## MODIFIED Requirements` abre com um preâmbulo entre o header dela e o primeiro `### Requirement:`: a frase "Alterados nesta change; o restante de cada bloco é repetição da spec publicada." e um item por requirement modificado, no formato `- <nome do requirement>: <alterações>`.'
+    - 'O item cita `descrição` quando o texto entre o header do requirement e o primeiro cenário muda, e o nome de cada cenário alterado. Cenário repetido sem alteração fica fora da lista.'
+    - 'O preâmbulo só funciona nessa posição: o parser descarta o que vem antes do primeiro `### Requirement:`, então ele morre no archive. Abaixo do header do requirement o archive copia verbatim para a spec publicada, e anexado ao título da seção derruba os MODIFIED em silêncio, com validate verde.'
   tasks:
     - 'Uma task pode trazer um bloco ```diff logo abaixo do checkbox, com a forma concreta da mudança.'
     - 'A cerca abre e fecha na coluna 0, separada do checkbox por uma linha em branco: cerca indentada não recebe realce de sintaxe.'
@@ -58,3 +62,4 @@ rules:
   design:
     - 'Toda decisão de estrutura vem com um diagrama Mermaid: componentes e suas chamadas, sequência do caso principal, modelo de dados. O texto ao lado só acrescenta o que o desenho não carrega.'
     - 'Nada de diagrama decorativo: se o desenho não muda o entendimento de quem vai implementar, corte.'
+    - 'Context só recebe restrição que uma decisão deste documento vira por causa dela. Se nenhuma decisão muda de forma quando a linha some, a linha sai.'

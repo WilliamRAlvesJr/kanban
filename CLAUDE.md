@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado do projeto
 
-A capability `account-management` está implementada. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController`, `AccountNotFoundException` e os records `CreateAccountRequest` e `AccountResponse`. `POST /accounts` responde 201 com o email em minúsculas e a senha em hash BCrypt, 400 na entrada inválida e 409 no email repetido; `GET /accounts/{id}` responde 200, 400 no id fora do formato uuid e 404 no id desconhecido. O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exceções em `ProblemDetail`. Board, coluna e card estão por fazer.
+A capability `account-management` está implementada. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController`, `AccountNotFoundException` e os records `CreateAccountRequest` e `AccountResponse`. `POST /accounts` responde 201 com o email em minúsculas e a senha em hash BCrypt, 400 na entrada inválida e 409 no email repetido; `GET /accounts/{id}` responde 200, 400 no id fora do formato uuid e 404 no id desconhecido. O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exceções em `ProblemDetail`.
+
+A capability `authentication` está em construção. A tabela `auth_tokens` e o pacote `com.william.kanban.auth`, com `AuthToken` e `AuthTokenRepository`, já existem; enquanto não houver `SecurityConfig`, a autoconfiguração do Spring Security bloqueia toda rota e `./mvnw test` reprova. Board, coluna e card estão por fazer.
 
 ## Stack
 
@@ -12,7 +14,7 @@ A capability `account-management` está implementada. O pacote `com.william.kanb
 - `spring-boot-starter-webmvc` para REST e `springdoc-openapi-starter-webmvc-ui` 3.1.0 para OpenAPI e Swagger UI
 - Persistência em Postgres com `spring-boot-starter-data-jpa`; schema versionado por Flyway em `src/main/resources/db/migration`, com `spring.jpa.hibernate.ddl-auto=validate`
 - Em Spring Boot 4 a autoconfiguração de cada integração vem em módulo próprio: `flyway-core` sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`
-- `spring-boot-starter-validation` para as anotações de Bean Validation e `spring-security-crypto` pelo `BCryptPasswordEncoder`, sem cadeia de filtros de segurança
+- `spring-boot-starter-validation` para as anotações de Bean Validation e `spring-boot-starter-security` pelo `BCryptPasswordEncoder` e pela cadeia de filtros
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
 - Teste de mutação pelo `pitest-maven` 1.30.0 com `pitest-junit5-plugin` 1.2.3, fora do ciclo padrão: `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` gera `target/pit-reports/` e reprova abaixo de 80% de mutantes mortos
 - Cobertura pelo `jacoco-maven-plugin`: a fase `test` gera o relatório em `target/site/jacoco/` e roda o `check`, que reprova o build abaixo de 80% de instrução ou de branch; `KanbanApplication` fica fora da medição
