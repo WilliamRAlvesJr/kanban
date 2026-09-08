@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado do projeto
 
-A capability `account-management` está implementada. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController`, `AccountNotFoundException` e os records `CreateAccountRequest` e `AccountResponse`. `POST /accounts` responde 201 com o email em minúsculas e a senha em hash BCrypt, 400 na entrada inválida e 409 no email repetido; `GET /accounts/{id}` responde 200, 400 no id fora do formato uuid e 404 no id desconhecido. O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exceções em `ProblemDetail`.
+A capability `account-management` está implementada. O pacote `com.william.kanban.account` tem `Account`, `AccountRepository`, `AccountService`, `AccountController`, `AccountNotFoundException` e os records `CreateAccountRequest` e `AccountResponse`. `POST /accounts` responde 201 sem header `Location`, com o email em minúsculas e a senha em hash BCrypt, 400 na entrada inválida e 409 no email repetido; `GET /accounts/me` responde 200 com a conta do token. `AccountService` é a única classe pública do pacote, e só `authenticate` sai dele: o `password_hash` não atravessa a fronteira.
 
-A capability `authentication` está em construção. A tabela `auth_tokens` e o pacote `com.william.kanban.auth`, com `AuthToken` e `AuthTokenRepository`, já existem; enquanto não houver `SecurityConfig`, a autoconfiguração do Spring Security bloqueia toda rota e `./mvnw test` reprova. Board, coluna e card estão por fazer.
+A capability `authentication` está implementada. O pacote `com.william.kanban.auth` tem `AuthToken`, `AuthTokenRepository`, `AuthService`, `AuthController`, `InvalidCredentialsException`, `BearerAuthenticationFilter`, `ProblemDetailAuthenticationEntryPoint`, `SecurityConfig`, `OpenApiSecurityConfig` e os records `LoginRequest`, `LoginResponse` e `IssuedToken`. `POST /auth/login` responde 201 com um token opaco de 256 bits, gravado em `auth_tokens` só como hash SHA-256, 400 na entrada inválida e 401 na credencial errada, com o mesmo corpo para senha errada e email inexistente; `POST /auth/logout` apaga a linha do token da própria chamada e responde 204. As rotas abertas são `POST /accounts`, `POST /auth/login` e a documentação OpenAPI; toda outra exige `Authorization: Bearer` e responde 401 em `ProblemDetail`.
+
+O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exceções em `ProblemDetail`. Board, coluna e card estão por fazer.
 
 ## Stack
 
@@ -15,6 +17,8 @@ A capability `authentication` está em construção. A tabela `auth_tokens` e o 
 - Persistência em Postgres com `spring-boot-starter-data-jpa`; schema versionado por Flyway em `src/main/resources/db/migration`, com `spring.jpa.hibernate.ddl-auto=validate`
 - Em Spring Boot 4 a autoconfiguração de cada integração vem em módulo próprio: `flyway-core` sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`
 - `spring-boot-starter-validation` para as anotações de Bean Validation e `spring-boot-starter-security` pelo `BCryptPasswordEncoder` e pela cadeia de filtros
+- `kanban.auth.token-ttl` fica no `application.properties`, com default `24h` lido como `Duration`; prazo de sessão não entra nas variáveis de ambiente, que derrubam a subida quando faltam
+- `KanbanApplication` exclui `UserDetailsServiceAutoConfiguration`: desligar `httpBasic` e `formLogin` não impede a subida de gerar o usuário `user` com senha aleatória
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
 - Teste de mutação pelo `pitest-maven` 1.30.0 com `pitest-junit5-plugin` 1.2.3, fora do ciclo padrão: `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` gera `target/pit-reports/` e reprova abaixo de 80% de mutantes mortos
 - Cobertura pelo `jacoco-maven-plugin`: a fase `test` gera o relatório em `target/site/jacoco/` e roda o `check`, que reprova o build abaixo de 80% de instrução ou de branch; `KanbanApplication` fica fora da medição

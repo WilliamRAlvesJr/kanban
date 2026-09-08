@@ -48,4 +48,8 @@ class Account {
 		return displayName;
 	}
 
+	String getPasswordHash() {
+		return passwordHash;
+	}
+
 }

@@ -28,7 +28,7 @@ CREATE UNIQUE INDEX ux_auth_tokens_token_hash ON auth_tokens (token_hash);
 CREATE INDEX ix_auth_tokens_account_id ON auth_tokens (account_id);
 ```
 
-- [ ] 1.3 Declarar `kanban.auth.token-ttl` no `application.properties` e verificar que o valor chega ao service como `Duration`
+- [x] 1.3 Declarar `kanban.auth.token-ttl` no `application.properties` e verificar que o valor chega ao service como `Duration`
 
 ```diff
 +++ b/src/main/resources/application.properties
@@ -61,13 +61,13 @@ class AuthToken {
 }
 ```
 
-- [ ] 2.2 Criar `AuthTokenRepository` com `findByTokenHash` e `deleteByTokenHash`, e verificar pelos testes de login e de logout
+- [x] 2.2 Criar `AuthTokenRepository` com `findByTokenHash` e `deleteByTokenHash`, e verificar pelos testes de login e de logout
 
 ## 3. Verificação de credencial
 
-- [ ] 3.1 Publicar o `PasswordEncoder` como bean e injetá-lo em `AccountService`, verificando que os testes de cadastro seguem verdes
-- [ ] 3.2 Acrescentar `findByEmail` a `AccountRepository` e verificar que o login encontra a conta com o email em qualquer caixa
-- [ ] 3.3 Tornar `AccountService` pública e acrescentar `authenticate`, que normaliza o email, devolve o id da conta e roda `matches` contra um hash fixo quando o email não existe; verificar pelos cenários "Senha errada" e "Email não cadastrado"
+- [x] 3.1 Publicar o `PasswordEncoder` como bean e injetá-lo em `AccountService`, verificando que os testes de cadastro seguem verdes
+- [x] 3.2 Acrescentar `findByEmail` a `AccountRepository` e verificar que o login encontra a conta com o email em qualquer caixa
+- [x] 3.3 Tornar `AccountService` pública e acrescentar `authenticate`, que normaliza o email, devolve o id da conta e roda `matches` contra um hash fixo quando o email não existe; verificar pelos cenários "Senha errada" e "Email não cadastrado"
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/AccountService.java
@@ -81,16 +81,16 @@ class AuthToken {
 
 ## 4. Login e logout
 
-- [ ] 4.1 Criar os records `LoginRequest` e `LoginResponse`, com `token_type` e `expires_at` em snake_case, e verificar o corpo devolvido no cenário "Credenciais corretas"
-- [ ] 4.2 Criar `AuthService` com `login`, `logout` e `resolve`, gerando 256 bits por `SecureRandom` e gravando o SHA-256; verificar que a coluna `token_hash` não guarda o valor em claro
-- [ ] 4.3 Criar `InvalidCredentialsException` e traduzi-la em `ProblemDetail` 401 no `GlobalExceptionHandler`, verificando que os dois cenários de credencial inválida devolvem corpos iguais
-- [ ] 4.4 Criar `AuthController` com `POST /auth/login` e `POST /auth/logout`, anotando os códigos de resposta, e verificar pelos cenários de emissão e de revogação
+- [x] 4.1 Criar os records `LoginRequest` e `LoginResponse`, com `token_type` e `expires_at` em snake_case, e verificar o corpo devolvido no cenário "Credenciais corretas"
+- [x] 4.2 Criar `AuthService` com `login`, `logout` e `resolve`, gerando 256 bits por `SecureRandom` e gravando o SHA-256; verificar que a coluna `token_hash` não guarda o valor em claro
+- [x] 4.3 Criar `InvalidCredentialsException` e traduzi-la em `ProblemDetail` 401 no `GlobalExceptionHandler`, verificando que os dois cenários de credencial inválida devolvem corpos iguais
+- [x] 4.4 Criar `AuthController` com `POST /auth/login` e `POST /auth/logout`, anotando os códigos de resposta, e verificar pelos cenários de emissão e de revogação
 
 ## 5. Cadeia de filtros
 
-- [ ] 5.1 Criar `BearerAuthenticationFilter` como `OncePerRequestFilter`, que lê o header `Authorization`, resolve o token e põe o id da conta no `SecurityContext`; verificar pelos cenários "Token válido", "Token desconhecido", "Header em outro formato" e "Token expirado"
-- [ ] 5.2 Criar o `AuthenticationEntryPoint` que serializa `ProblemDetail` 401 com o `ObjectMapper` da aplicação, e verificar que a requisição sem header devolve 401 com corpo, não 403 vazio
-- [ ] 5.3 Criar `SecurityConfig` com a `SecurityFilterChain` e verificar que cadastro, login e OpenAPI respondem sem token e que toda outra rota responde 401
+- [x] 5.1 Criar `BearerAuthenticationFilter` como `OncePerRequestFilter`, que lê o header `Authorization`, resolve o token e põe o id da conta no `SecurityContext`; verificar pelos cenários "Token válido", "Token desconhecido", "Header em outro formato" e "Token expirado"
+- [x] 5.2 Criar o `AuthenticationEntryPoint` que serializa `ProblemDetail` 401 com o `ObjectMapper` da aplicação, e verificar que a requisição sem header devolve 401 com corpo, não 403 vazio
+- [x] 5.3 Criar `SecurityConfig` com a `SecurityFilterChain` e verificar que cadastro, login e OpenAPI respondem sem token e que toda outra rota responde 401
 
 ```diff
 +++ b/src/main/java/com/william/kanban/auth/SecurityConfig.java
@@ -110,7 +110,7 @@ class AuthToken {
 
 ## 6. Conta autenticada
 
-- [ ] 6.1 Trocar `GET /accounts/{id}` por `GET /accounts/me` em `AccountController`, lendo o id por `@AuthenticationPrincipal`, e verificar pelos cenários "Conta do token" e "Conta de outro token"
+- [x] 6.1 Trocar `GET /accounts/{id}` por `GET /accounts/me` em `AccountController`, lendo o id por `@AuthenticationPrincipal`, e verificar pelos cenários "Conta do token" e "Conta de outro token"
 
 ```diff
 +++ b/src/main/java/com/william/kanban/account/AccountController.java
@@ -130,19 +130,19 @@ class AuthToken {
 	}
 ```
 
-- [ ] 6.2 Devolver 201 sem header `Location` no cadastro e verificar que o cenário "Conta criada" checa a ausência do header
-- [ ] 6.3 Declarar o `securityScheme` `bearer` para o springdoc e verificar que o documento OpenAPI o traz e que o Swagger UI envia o header
+- [x] 6.2 Devolver 201 sem header `Location` no cadastro e verificar que o cenário "Conta criada" checa a ausência do header
+- [x] 6.3 Declarar o `securityScheme` `bearer` para o springdoc e verificar que o documento OpenAPI o traz e que o Swagger UI envia o header
 
 ## 7. Testes
 
-- [ ] 7.1 Criar `AuthApiTest` cobrindo emissão, email em maiúsculas, campo ausente, senha errada, email não cadastrado, dois logins independentes, logout, logout sem token e token desconhecido
-- [ ] 7.2 Cobrir "Token expirado" ajustando o `expires_at` da linha no banco antes da chamada
-- [ ] 7.3 Atualizar `AccountApiTest`: remover os testes de consulta por id, mover `doesNotReturnPassword` para `/accounts/me`, checar a ausência de `Location` e atualizar `documentsAccountEndpoints`
-- [ ] 7.4 Cobrir `AccountNotFoundException` por teste direto de `AccountService.findById` com um id desconhecido
+- [x] 7.1 Criar `AuthApiTest` cobrindo emissão, email em maiúsculas, campo ausente, senha errada, email não cadastrado, dois logins independentes, logout, logout sem token e token desconhecido
+- [x] 7.2 Cobrir "Token expirado" ajustando o `expires_at` da linha no banco antes da chamada
+- [x] 7.3 Atualizar `AccountApiTest`: remover os testes de consulta por id, mover `doesNotReturnPassword` para `/accounts/me`, checar a ausência de `Location` e atualizar `documentsAccountEndpoints`
+- [x] 7.4 Cobrir `AccountNotFoundException` por teste direto de `AccountService.findById` com um id desconhecido
 
 ## 8. Documentação e verificação
 
-- [ ] 8.1 Atualizar `README.md` com o fluxo de login, os endpoints novos e a troca de dependência
-- [ ] 8.2 Atualizar `CLAUDE.md` com o estado do projeto, a stack de segurança e a propriedade de prazo do token
-- [ ] 8.3 Rodar `./mvnw -q verify` e confirmar que o gate de cobertura de 80% passa
-- [ ] 8.4 Rodar `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` e confirmar 80% de mutantes mortos
+- [x] 8.1 Atualizar `README.md` com o fluxo de login, os endpoints novos e a troca de dependência
+- [x] 8.2 Atualizar `CLAUDE.md` com o estado do projeto, a stack de segurança e a propriedade de prazo do token
+- [x] 8.3 Rodar `./mvnw -q verify` e confirmar que o gate de cobertura de 80% passa
+- [x] 8.4 Rodar `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` e confirmar 80% de mutantes mortos

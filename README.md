@@ -1,7 +1,8 @@
 # Kanban
 
-API REST em Spring Boot para gestão de quadros kanban. A gestão de contas está implementada
-(`POST /accounts` e `GET /accounts/{id}`); quadro, coluna e card ainda não.
+API REST em Spring Boot para gestão de quadros kanban. Cadastro de conta e login por token
+estão implementados (`POST /accounts`, `POST /auth/login`, `POST /auth/logout` e
+`GET /accounts/me`); quadro, coluna e card ainda não.
 
 ## Requisitos
 
@@ -35,11 +36,25 @@ A aplicação sobe em `http://localhost:8080` e o Flyway aplica as migrações d
 ```console
 $ curl -X POST http://localhost:8080/accounts -H "Content-Type: application/json" -d '{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}'
 {"id":"3f1b...","email":"ana@exemplo.com","display_name":"Ana"}
+
+$ curl -X POST http://localhost:8080/auth/login -H "Content-Type: application/json" -d '{"email": "ana@exemplo.com", "password": "segredo"}'
+{"token":"kZ8x...","token_type":"Bearer","expires_at":"2026-09-09T00:12:34.567-03:00"}
+
+$ curl http://localhost:8080/accounts/me -H "Authorization: Bearer kZ8x..."
+{"id":"3f1b...","email":"ana@exemplo.com","display_name":"Ana"}
+
+$ curl -X POST http://localhost:8080/auth/logout -H "Authorization: Bearer kZ8x..."
 ```
 
 O email é normalizado para minúsculas e a senha é gravada como hash BCrypt; nenhuma resposta
-devolve a senha. `POST /accounts` responde 400 na entrada inválida e 409 no email repetido;
-`GET /accounts/{id}` responde 400 no id fora do formato uuid e 404 no id desconhecido.
+devolve a senha. `POST /accounts` responde 400 na entrada inválida e 409 no email repetido.
+
+`POST /accounts`, `POST /auth/login` e a documentação OpenAPI atendem sem token; todo o resto
+exige o header `Authorization: Bearer <token>` e responde 401 em `ProblemDetail` sem ele. O
+token é opaco, aparece em claro só na resposta do login e fica no banco como hash SHA-256. Cada
+login emite um token independente, e `POST /auth/logout` revoga o da própria chamada e responde
+204. A validade é de 24 horas, pela propriedade `kanban.auth.token-ttl` do
+`application.properties`.
 
 Para subir em outra porta:
 
@@ -127,8 +142,8 @@ mutável, então o limite descrito acima vale igual aqui.
 - `springdoc-openapi-starter-webmvc-ui` 3.1.0 para OpenAPI e Swagger UI
 - `spring-boot-starter-data-jpa` sobre Postgres, com schema versionado por Flyway e
   `spring.jpa.hibernate.ddl-auto=validate`
-- `spring-boot-starter-validation` e `spring-security-crypto` (só o `BCryptPasswordEncoder`,
-  sem cadeia de filtros)
+- `spring-boot-starter-validation` e `spring-boot-starter-security`, este pelo
+  `BCryptPasswordEncoder` e pela cadeia de filtros que resolve o token
 - Testes com `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` e Testcontainers
 - Cobertura com `jacoco-maven-plugin` 0.8.13
 
@@ -143,6 +158,7 @@ sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`.
 src/main/java/com/william/kanban/
   KanbanApplication.java          ponto de entrada
   account/                        entidade, repositório, serviço, controller e records de JSON
+  auth/                           token, login, logout, filtro Bearer e cadeia de filtros
   shared/GlobalExceptionHandler   traduz as exceções em ProblemDetail
 src/main/resources/
   application.properties          conexão por variável de ambiente e validação do schema
@@ -151,6 +167,8 @@ src/test/java/com/william/kanban/
   TestcontainersConfiguration     Postgres em container para os testes
   KanbanApplicationTests          carga do contexto
   account/AccountApiTest          endpoints de conta, de ponta a ponta
+  account/AccountServiceTest      consulta por id fora da API
+  auth/AuthApiTest                login, logout e requisição autenticada
   shared/GlobalExceptionHandlerTest   tradução das exceções, sem contexto Spring
 ```
 
@@ -160,7 +178,7 @@ O repositório é spec-driven com OpenSpec (`openspec/`). As specs ficam em `ope
 mudanças em andamento em `openspec/changes/`, no ciclo `/opsx:propose`, `/opsx:apply`,
 `/opsx:verify`, `/opsx:archive`.
 
-Spec publicada: `account-management`. Não há change em andamento.
+Spec publicada: `account-management`. Change em andamento: `add-login`.
 
 O formato dos artefatos vem de `openspec/config.yaml`. As instruções para o agente estão no
 `CLAUDE.md`.

@@ -2,7 +2,6 @@ package com.william.kanban.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -21,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -50,7 +50,7 @@ class AccountApiTest {
 								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
 								"""))
 				.andExpect(status().isCreated())
-				.andExpect(header().string("Location", matchesPattern(".*/accounts/[0-9a-f-]{36}$")))
+				.andExpect(header().doesNotExist("Location"))
 				.andExpect(jsonPath("$.id").isNotEmpty())
 				.andExpect(jsonPath("$.email").value("ana@exemplo.com"))
 				.andExpect(jsonPath("$.display_name").value("Ana"));
@@ -86,12 +86,11 @@ class AccountApiTest {
 
 	@Test
 	void doesNotReturnPassword() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated())
+		String id = createAna();
+
+		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOfAna()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.password_hash").doesNotExist());
 	}
@@ -169,31 +168,6 @@ class AccountApiTest {
 	}
 
 	@Test
-	void findsAccountById() throws Exception {
-		String id = createAna();
-
-		mockMvc.perform(get("/accounts/{id}", id))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.email").value("ana@exemplo.com"))
-				.andExpect(jsonPath("$.display_name").value("Ana"))
-				.andExpect(jsonPath("$.password").doesNotExist())
-				.andExpect(jsonPath("$.password_hash").doesNotExist());
-	}
-
-	@Test
-	void returnsNotFoundForUnknownId() throws Exception {
-		mockMvc.perform(get("/accounts/{id}", UUID.randomUUID()))
-				.andExpect(status().isNotFound());
-	}
-
-	@Test
-	void rejectsIdThatIsNotUuid() throws Exception {
-		mockMvc.perform(get("/accounts/{id}", "nao-e-uuid"))
-				.andExpect(status().isBadRequest());
-	}
-
-	@Test
 	void documentsAccountEndpoints() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
@@ -201,9 +175,9 @@ class AccountApiTest {
 				.andExpect(jsonPath("$.paths['/accounts'].post.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/accounts'].post.responses.409").exists())
 				.andExpect(jsonPath("$.paths['/accounts'].post.responses.200").doesNotExist())
-				.andExpect(jsonPath("$.paths['/accounts/{id}'].get.responses.200").exists())
-				.andExpect(jsonPath("$.paths['/accounts/{id}'].get.responses.400").exists())
-				.andExpect(jsonPath("$.paths['/accounts/{id}'].get.responses.404").exists())
+				.andExpect(jsonPath("$.paths['/accounts/{id}']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.200").exists())
+				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.401").exists())
 				.andExpect(jsonPath("$.components.schemas.CreateAccountRequest.properties.display_name").exists())
 				.andExpect(jsonPath("$.components.schemas.AccountResponse.properties.display_name").exists());
 	}
@@ -219,6 +193,19 @@ class AccountApiTest {
 				.getResponse()
 				.getContentAsString();
 		return JsonPath.read(body, "$.id");
+	}
+
+	private String tokenOfAna() throws Exception {
+		String body = mockMvc.perform(post("/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email": "ana@exemplo.com", "password": "segredo"}
+								"""))
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		return JsonPath.read(body, "$.token");
 	}
 
 	private Integer countAccounts() {

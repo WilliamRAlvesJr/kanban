@@ -49,12 +49,17 @@ Exatamente uma resposta traz o token em claro: a do login. Token perdido não é
 classDiagram
     class AuthController {
         +login(LoginRequest) LoginResponse
-        +logout(String) void
+        +logout(Authentication) void
     }
     class AuthService {
-        +login(String, String) AuthToken
+        +login(String, String) IssuedToken
         +logout(String) void
         +resolve(String) Optional~UUID~
+    }
+    class IssuedToken {
+        <<record>>
+        +value String
+        +expiresAt OffsetDateTime
     }
     class BearerAuthenticationFilter {
         <<OncePerRequestFilter>>
@@ -68,6 +73,7 @@ classDiagram
         +findById(UUID) Account
     }
     AuthController --> AuthService
+    AuthService --> IssuedToken
     BearerAuthenticationFilter --> AuthService
     AuthService --> AccountService
     SecurityConfig --> BearerAuthenticationFilter
@@ -75,7 +81,9 @@ classDiagram
 
 `AccountService` é a única classe de `account` que passa a pública, e `authenticate` o único método novo exposto. Nenhuma classe de `auth` alcança `Account`, `AccountRepository` ou os records: o `password_hash` não sai do pacote `account`.
 
-O principal de toda requisição autenticada é o `UUID` da conta, resolvido do token pelo filtro. `AccountController` o recebe por `@AuthenticationPrincipal` e não lê o header.
+`AuthToken` guarda o hash, então o valor em claro sai do service no record `IssuedToken`, e `AuthController` monta o `LoginResponse` com o `token_type`.
+
+O `Authentication` que o filtro cria carrega o `UUID` da conta como principal e o token como credentials. `AccountController` recebe o id por `@AuthenticationPrincipal` e `AuthController.logout` lê o token das credentials: nenhum dos dois lê o header, e o documento OpenAPI não declara `Authorization` como parâmetro de operação.
 
 ### Cadeia de filtros
 
@@ -93,7 +101,7 @@ flowchart TD
 
 As rotas abertas são `POST /accounts`, `POST /auth/login`, `/v3/api-docs/**`, `/swagger-ui/**` e `/swagger-ui.html`. Toda rota fora dessa lista exige token. Um token vale quando existe linha em `auth_tokens` com o hash recebido e `expires_at` no futuro; em todo outro caso a resposta é 401.
 
-A `SecurityFilterChain` fica em `SecurityConfig`, com `csrf` desligado, `SessionCreationPolicy.STATELESS`, `httpBasic` e `formLogin` desligados. Desligar os dois últimos remove o usuário `user` que `UserDetailsServiceAutoConfiguration` gera na subida.
+A `SecurityFilterChain` fica em `SecurityConfig`, com `csrf` desligado, `SessionCreationPolicy.STATELESS`, `httpBasic` e `formLogin` desligados. `KanbanApplication` exclui `UserDetailsServiceAutoConfiguration`: desligar as duas formas de autenticação não impede a subida de gerar o usuário `user` com senha aleatória.
 
 O `AuthenticationEntryPoint` do projeto serializa um `ProblemDetail` 401 com o `ObjectMapper` da aplicação. Sem ele a cadeia responde 403 com corpo vazio, fora do formato de erro do resto da API.
 
