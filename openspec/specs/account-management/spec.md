@@ -6,7 +6,7 @@ Cadastro e consulta de contas de usuário do kanban, com email único e normaliz
 
 ### Requirement: Cadastro de conta
 
-O sistema SHALL expor `POST /accounts`, que recebe `email`, `display_name` e `password` e cria uma conta com identificador `uuid` gerado pelo sistema.
+O sistema SHALL expor `POST /accounts`, que recebe `email`, `display_name` e `password` e cria uma conta com identificador `uuid` gerado pelo sistema. O endpoint SHALL atender sem token.
 
 A resposta de sucesso SHALL ser `201` com os dados públicos da conta: `id`, `email` e `display_name`.
 
@@ -16,7 +16,7 @@ A resposta de sucesso SHALL ser `201` com os dados públicos da conta: `id`, `em
 Given nenhuma conta com o email "ana@exemplo.com"
 When chega POST /accounts com email "ana@exemplo.com", display_name e password preenchidos
 Then a resposta é 201 com id, email e display_name
-And o header Location aponta para /accounts/{id}
+And a resposta não traz o header Location
 ```
 
 #### Scenario: Campo obrigatório ausente
@@ -77,8 +77,8 @@ O sistema SHALL gravar a senha apenas como hash BCrypt. A senha em texto puro SH
 #### Scenario: Senha não trafega de volta
 
 ```gherkin
-Given uma conta criada com a senha "segredo"
-When chega GET /accounts/{id} com o id dessa conta
+Given um token emitido para uma conta criada com a senha "segredo"
+When chega GET /accounts/me com esse token
 Then o corpo da resposta contém somente id, email e display_name
 And nenhum campo password ou password_hash aparece
 ```
@@ -91,33 +91,34 @@ Then a coluna password_hash guarda um hash BCrypt que valida contra "segredo"
 And o valor gravado é diferente de "segredo"
 ```
 
-### Requirement: Consulta de conta por id
+### Requirement: Consulta da conta autenticada
 
-O sistema SHALL expor `GET /accounts/{id}`, que devolve os dados públicos da conta.
+O sistema SHALL expor `GET /accounts/me`, que devolve os dados públicos da conta dona do token da requisição.
 
-#### Scenario: Conta encontrada
+#### Scenario: Conta do token
 
 ```gherkin
-Given uma conta existente
-When chega GET /accounts/{id} com o id dessa conta
-Then a resposta é 200 com id, email e display_name
+Given um token emitido para a conta de "ana@exemplo.com"
+When chega GET /accounts/me com esse token
+Then a resposta é 200 com id, email e display_name da conta de "ana@exemplo.com"
 ```
 
-#### Scenario: Conta inexistente
+#### Scenario: Conta de outro token
 
 ```gherkin
-When chega GET /accounts/{id} com um uuid que não pertence a nenhuma conta
-Then a resposta é 404
+Given duas contas cadastradas, cada uma com o seu token
+When chega GET /accounts/me com o token da segunda conta
+Then a resposta traz o id da segunda conta
 ```
 
 ### Requirement: Endpoints documentados no OpenAPI
 
-Os dois endpoints de conta SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
+Os endpoints de conta SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
 
 #### Scenario: OpenAPI lista os endpoints
 
 ```gherkin
 When o documento OpenAPI é solicitado
-Then ele descreve POST /accounts e GET /accounts/{id}
+Then ele descreve POST /accounts e GET /accounts/me
 And lista os códigos de resposta de cada endpoint
 ```
