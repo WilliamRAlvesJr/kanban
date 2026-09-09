@@ -81,7 +81,7 @@ O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura 
 
 - Pacote raiz `com.william.kanban`
 - `pom.xml` mantém `<license>`, `<developers>` e `<scm>` vazios de propósito, para anular a herança do parent POM
-- `.openspec-ui/` e `.claude/tmp/` estão no `.gitignore` (estado local da UI do OpenSpec e temporários do Claude Code)
+- `.openspec-ui/`, `.claude/tmp/` e `roteiros/` estão no `.gitignore` (estado local da UI do OpenSpec, temporários do Claude Code e material das vídeo-aulas)
 - Código em inglês: pacote, classe, método, variável, coluna, tabela, endpoint e campo de JSON
 - Campo de JSON em snake_case e campo Java em camelCase: o record leva `@JsonProperty("display_name")` onde o nome tem mais de uma palavra, e a anotação vale tanto para o Jackson 3 da aplicação quanto para o schema que o springdoc gera com Jackson 2
 - Prosa em português do Brasil, com acentuação correta: artefatos do OpenSpec, documentos do projeto, comentário e Javadoc, mensagem de commit
