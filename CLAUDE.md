@@ -63,7 +63,8 @@ Regra do fluxo: a fase de proposta **não edita código de projeto**. Ao propor,
 `openspec/config.yaml` alimenta a geração dos artefatos e é o lugar de mexer no formato deles. Ele não repete stack, comandos nem convenções: aponta para este arquivo.
 
 - `context:` traz as regras de escrita dos artefatos e as de diagrama. Vale para todo artefato gerado.
-- `rules.proposal` e `rules.design` trazem o que é específico de cada um.
+- `rules.proposal`, `rules.specs`, `rules.tasks` e `rules.design` trazem o que é específico de cada um.
+- `rules.tasks` exige TDD: cada comportamento vira dois checkboxes, o do teste que falha e o do código que o faz passar, agrupados por comportamento observável em vez de por camada.
 - As regras de escrita cortam racional de decisão, trabalho futuro, estado anterior e hedge. As de diagrama pedem Mermaid no lugar da prosa sempre que o conteúdo for fluxo, sequência, estado ou modelo de dados.
 
 `openspec/agent-harness.json` fixa `autonomyLevel: assisted` e `reviewGate: human-required`.

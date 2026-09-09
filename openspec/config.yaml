@@ -52,6 +52,9 @@ rules:
     - 'O item cita `descrição` quando o texto entre o header do requirement e o primeiro cenário muda, e o nome de cada cenário alterado. Cenário repetido sem alteração fica fora da lista.'
     - 'O preâmbulo só funciona nessa posição: o parser descarta o que vem antes do primeiro `### Requirement:`, então ele morre no archive. Abaixo do header do requirement o archive copia verbatim para a spec publicada, e anexado ao título da seção derruba os MODIFIED em silêncio, com validate verde.'
   tasks:
+    - 'Código novo entra por TDD: cada comportamento vira duas tasks, a primeira escreve o teste e confirma que ele falha, a segunda escreve o código até ele passar. Nunca um checkbox que implementa e verifica ao mesmo tempo.'
+    - 'Os grupos são por comportamento observável, um por endpoint ou por regra. Migration, entidade e repositório entram no grupo do primeiro teste que precisa deles, nunca em grupo próprio.'
+    - 'Task que não produz código diz isso na descrição, e diz o que já a satisfaz.'
     - 'Uma task pode trazer um bloco ```diff logo abaixo do checkbox, com a forma concreta da mudança.'
     - 'A cerca abre e fecha na coluna 0, separada do checkbox por uma linha em branco: cerca indentada não recebe realce de sintaxe.'
     - 'O bloco é opcional: use quando a forma do código não se deduz da descrição. Task de rodar comando, ajustar documentação ou escrever teste já descrito fica só com o texto.'
