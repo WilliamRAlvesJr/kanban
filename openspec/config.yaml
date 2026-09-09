@@ -14,6 +14,7 @@ context: |
   - Não descreva o estado anterior do projeto, o que existia antes nem o que foi removido.
   - Sem hedge: nada de "talvez", "poderia", "provavelmente", "por enquanto". Toda frase afirma um comportamento definido.
   - Cada fato aparece em um lugar só, dentro do artefato e entre artefatos. O design e o tasks não repetem o que a proposal já diz: apontam para ela.
+  - O CLAUDE.md é um desses lugares: não repita no artefato stack, comando, convenção, propriedade de configuração nem estado do projeto que ele já registra.
 
   Diagramas:
   - Prefira diagrama Mermaid a texto sempre que o conteúdo for fluxo, sequência de chamadas, máquina de estados, modelo de dados ou relação entre componentes.
@@ -25,22 +26,43 @@ context: |
 
 rules:
   proposal:
-    - Why: no máximo três frases, só o problema que motiva a change. Sem contexto histórico e sem antecipar a solução.
-    - What Changes: bullets, um comportamento observável por bullet, frase direta. Sem parágrafo de abertura e sem repetir o que já está em outro bullet.
-    - Impact: só fatos verificáveis (pacotes, endpoints, dependências, arquivos de configuração, migrations). Nenhuma linha de racional.
-    - Em What Changes, use um diagrama Mermaid no lugar do texto sempre que a change tiver fluxo de requisição, mudança de estado ou tabela nova. Os bullets ficam só com o que o diagrama não expressa (códigos de status, regras de validação, formato de campo).
-  design:
-    - Toda decisão de estrutura vem com um diagrama Mermaid: componentes e suas chamadas, sequência do caso principal, modelo de dados. O texto ao lado só acrescenta o que o desenho não carrega.
-    - Nada de diagrama decorativo: se o desenho não muda o entendimento de quem vai implementar, corte.
+    - 'Why: no máximo três frases, só o problema que motiva a change. Sem contexto histórico e sem antecipar a solução.'
+    - 'What Changes: bullets, um comportamento observável por bullet, frase direta. Sem parágrafo de abertura e sem repetir o que já está em outro bullet.'
+    - 'Impact: só fatos verificáveis (pacotes, endpoints, dependências, arquivos de configuração, migrations). Nenhuma linha de racional.'
+    - 'Em What Changes, use um diagrama Mermaid no lugar do texto sempre que a change tiver fluxo de requisição, mudança de estado ou tabela nova. Os bullets ficam só com o que o diagrama não expressa (códigos de status, regras de validação, formato de campo).'
+  specs:
+    - 'O corpo de cada cenário é um bloco cercado ```gherkin logo abaixo do header `#### Scenario: <nome>`. Nunca bullets `- **WHEN**` / `- **THEN**`.'
+    - 'O header `#### Scenario:` fica fora do bloco: openspec validate só conta header que não está dentro de fence, e cenário dentro do fence não existe para a validação nem para o archive.'
+    - 'Dentro do bloco vai só a sequência de passos, um por linha, com as palavras-chave Gherkin em inglês: Given, When, Then, And, But.'
+    - 'O bloco não repete Feature nem Scenario: o nome do cenário já está no header markdown.'
+    - 'Um When por cenário. Pré-condição em Given, resultado observável em Then, passo do mesmo tipo em And.'
+    - 'Passo é frase curta em português, com o nome real do endpoint, campo, coluna ou código de status. Valor literal entre aspas duplas.'
+    - 'Scenario Outline com Examples só quando o mesmo passo se repete para três ou mais valores; a tabela fica dentro do mesmo bloco.'
+    - |
+      Formato:
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+      #### Scenario: Conta criada
+      ```gherkin
+      Given nenhuma conta com o email "ana@exemplo.com"
+      When chega POST /accounts com email "Ana@Exemplo.com", display_name e password
+      Then a resposta é 201 com id, email e display_name
+      And o header Location aponta para /accounts/{id}
+      ```
+    - 'Seção `## MODIFIED Requirements` abre com um preâmbulo entre o header dela e o primeiro `### Requirement:`: a frase "Alterados nesta change; o restante de cada bloco é repetição da spec publicada." e um item por requirement modificado, no formato `- <nome do requirement>: <alterações>`.'
+    - 'O item cita `descrição` quando o texto entre o header do requirement e o primeiro cenário muda, e o nome de cada cenário alterado. Cenário repetido sem alteração fica fora da lista.'
+    - 'O preâmbulo só funciona nessa posição: o parser descarta o que vem antes do primeiro `### Requirement:`, então ele morre no archive. Abaixo do header do requirement o archive copia verbatim para a spec publicada, e anexado ao título da seção derruba os MODIFIED em silêncio, com validate verde.'
+  tasks:
+    - 'Código novo entra por TDD: cada comportamento vira duas tasks, a primeira escreve o teste e confirma que ele falha, a segunda escreve o código até ele passar. Nunca um checkbox que implementa e verifica ao mesmo tempo.'
+    - 'Os grupos são por comportamento observável, um por endpoint ou por regra. Migration, entidade e repositório entram no grupo do primeiro teste que precisa deles, nunca em grupo próprio.'
+    - 'Task que não produz código diz isso na descrição, e diz o que já a satisfaz.'
+    - 'Uma task pode trazer um bloco ```diff logo abaixo do checkbox, com a forma concreta da mudança.'
+    - 'A cerca abre e fecha na coluna 0, separada do checkbox por uma linha em branco: cerca indentada não recebe realce de sintaxe.'
+    - 'O bloco é opcional: use quando a forma do código não se deduz da descrição. Task de rodar comando, ajustar documentação ou escrever teste já descrito fica só com o texto.'
+    - 'O checkbox continua carregando a descrição e a verificação; o diff não substitui o texto nem repete o que ele diz.'
+    - 'Primeira linha do bloco: `+++ b/<caminho relativo do arquivo>`.'
+    - 'O código dentro do diff mantém a indentação real do arquivo, uma tag ou instrução por linha. Nada de elemento colapsado em linha única para poupar espaço.'
+    - 'O diff traz só as linhas que importam: assinatura, anotação, propriedade, coluna, dependência. Corpo de método, import e bloco inalterado saem, marcados com `...`. Nunca cole arquivo inteiro.'
+  design:
+    - 'Toda decisão de estrutura vem com um diagrama Mermaid: componentes e suas chamadas, sequência do caso principal, modelo de dados. O texto ao lado só acrescenta o que o desenho não carrega.'
+    - 'Nada de diagrama decorativo: se o desenho não muda o entendimento de quem vai implementar, corte.'
+    - 'Context só recebe restrição que uma decisão deste documento vira por causa dela. Se nenhuma decisão muda de forma quando a linha some, a linha sai.'
