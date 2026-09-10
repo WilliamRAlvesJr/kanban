@@ -186,6 +186,16 @@ class AuthApiTest {
 	}
 
 	@Test
+	void rejectsValidTokenUnderAnotherScheme() throws Exception {
+		createAna();
+		String token = tokenOf(login("ana@exemplo.com", "segredo"));
+
+		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Digest " + token))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
 	void rejectsUnknownToken() throws Exception {
 		mockMvc.perform(
 						get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer nunca-emitido"))
