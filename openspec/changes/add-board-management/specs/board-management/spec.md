@@ -1,6 +1,6 @@
 ## Purpose
 
-Quadros de uma conta do kanban, com criação, consulta, edição parcial e arquivamento reversível. Cada quadro tem um dono, e nenhuma conta enxerga quadro de outra.
+Quadros de uma conta do kanban, com criação, consulta, edição e arquivamento reversível. Cada quadro tem um dono, e nenhuma conta enxerga quadro de outra.
 
 ## ADDED Requirements
 
@@ -151,7 +151,7 @@ And archived_at traz o instante do arquivamento
 
 ### Requirement: Isolamento entre donos
 
-Requisição a `GET /boards/{id}` ou `PATCH /boards/{id}` de quadro que não pertence à conta do token SHALL receber `404`, com o mesmo `ProblemDetail` de quadro inexistente. A resposta SHALL NOT revelar que o quadro existe.
+Requisição a `GET /boards/{id}`, `PUT /boards/{id}`, `POST /boards/{id}/archive` ou `POST /boards/{id}/restore` de quadro que não pertence à conta do token SHALL receber `404`, com o mesmo `ProblemDetail` de quadro inexistente. A resposta SHALL NOT revelar que o quadro existe.
 
 #### Scenario: Consulta de quadro alheio
 
@@ -166,9 +166,27 @@ And o corpo é igual ao da resposta de quadro inexistente
 
 ```gherkin
 Given um quadro da segunda conta com name "Sprint 12"
-When chega PATCH /boards/{id} desse quadro com o token da primeira conta
+When chega PUT /boards/{id} desse quadro com o token da primeira conta
 Then a resposta é 404
 And o quadro continua com name "Sprint 12"
+```
+
+#### Scenario: Arquivamento de quadro alheio
+
+```gherkin
+Given um quadro ativo da segunda conta
+When chega POST /boards/{id}/archive desse quadro com o token da primeira conta
+Then a resposta é 404
+And archived_at continua null
+```
+
+#### Scenario: Restauração de quadro alheio
+
+```gherkin
+Given um quadro arquivado da segunda conta
+When chega POST /boards/{id}/restore desse quadro com o token da primeira conta
+Then a resposta é 404
+And archived_at continua preenchido
 ```
 
 #### Scenario: Quadro inexistente
@@ -178,96 +196,85 @@ When chega GET /boards/{id} com um id que nunca existiu
 Then a resposta é 404
 ```
 
-### Requirement: Edição parcial do quadro
+### Requirement: Substituição do quadro
 
-O sistema SHALL expor `PATCH /boards/{id}`, que altera somente os campos presentes no corpo e responde `200` com o quadro atualizado. Campo ausente do corpo SHALL NOT ser alterado, e `description` presente com `null` SHALL apagar a descrição.
+O sistema SHALL expor `PUT /boards/{id}`, que substitui `name` e `description` do quadro e responde `200` com o quadro atualizado. `description` ausente ou `null` SHALL gravar `null`, e `archived_at` SHALL NOT mudar.
 
-Corpo sem nenhum campo SHALL receber `200`, com o quadro inalterado.
-
-#### Scenario: Somente o name
+#### Scenario: Quadro substituído
 
 ```gherkin
 Given um quadro com name "Sprint 12" e description "Trabalho da sprint"
-When chega PATCH /boards/{id} com name "Sprint 13"
-Then a resposta é 200 com name "Sprint 13"
-And description continua "Trabalho da sprint"
+When chega PUT /boards/{id} com name "Sprint 13" e description "Outro texto"
+Then a resposta é 200 com name "Sprint 13" e description "Outro texto"
 ```
 
-#### Scenario: Somente a description
-
-```gherkin
-Given um quadro com name "Sprint 12" e description "Trabalho da sprint"
-When chega PATCH /boards/{id} com description "Outro texto"
-Then a resposta é 200 com description "Outro texto"
-And name continua "Sprint 12"
-```
-
-#### Scenario: Descrição apagada
+#### Scenario: Descrição omitida apagada
 
 ```gherkin
 Given um quadro com description "Trabalho da sprint"
-When chega PATCH /boards/{id} com description null
+When chega PUT /boards/{id} com name "Sprint 12" e sem o campo description
 Then a resposta é 200
 And description vem null
 ```
 
-#### Scenario: Corpo sem nenhum campo
+#### Scenario: Quadro arquivado editado
 
 ```gherkin
-Given um quadro com name "Sprint 12" e description "Trabalho da sprint"
-When chega PATCH /boards/{id} com o corpo "{}"
-Then a resposta é 200 com name "Sprint 12" e description "Trabalho da sprint"
+Given um quadro arquivado, com o archived_at guardado
+When chega PUT /boards/{id} com name "Sprint 13"
+Then a resposta é 200 com name "Sprint 13"
+And archived_at continua igual ao guardado
 ```
 
-### Requirement: Validação da entrada de edição
+### Requirement: Validação da entrada de substituição
 
-`PATCH /boards/{id}` com `name` presente e nulo, vazio ou acima de 100 caracteres SHALL receber `400`, e com `description` acima de 500 caracteres SHALL receber `400`. O quadro SHALL permanecer inalterado.
+`PUT /boards/{id}` com `name` ausente, vazio ou acima de 100 caracteres, ou com `description` acima de 500 caracteres, SHALL receber `400`. O quadro SHALL permanecer inalterado.
 
-#### Scenario: Name nulo
+#### Scenario: Name ausente na substituição
 
 ```gherkin
 Given um quadro com name "Sprint 12"
-When chega PATCH /boards/{id} com name null
+When chega PUT /boards/{id} sem o campo name
 Then a resposta é 400
 And o quadro continua com name "Sprint 12"
 ```
 
-#### Scenario: Name vazio
+#### Scenario: Name vazio na substituição
 
 ```gherkin
 Given um quadro com name "Sprint 12"
-When chega PATCH /boards/{id} com name ""
+When chega PUT /boards/{id} com name ""
 Then a resposta é 400
 And o quadro continua com name "Sprint 12"
 ```
 
-#### Scenario: Name acima do limite
+#### Scenario: Name acima do limite na substituição
 
 ```gherkin
 Given um quadro com name "Sprint 12"
-When chega PATCH /boards/{id} com name de 101 caracteres
+When chega PUT /boards/{id} com name de 101 caracteres
 Then a resposta é 400
 And o quadro continua com name "Sprint 12"
 ```
 
-#### Scenario: Description acima do limite
+#### Scenario: Description acima do limite na substituição
 
 ```gherkin
 Given um quadro com description "Trabalho da sprint"
-When chega PATCH /boards/{id} com description de 501 caracteres
+When chega PUT /boards/{id} com name "Sprint 12" e description de 501 caracteres
 Then a resposta é 400
 And o quadro continua com description "Trabalho da sprint"
 ```
 
 ### Requirement: Arquivamento reversível
 
-`PATCH /boards/{id}` com `archived` igual a `true` SHALL carimbar `archived_at` com o instante do arquivamento, e igual a `false` SHALL gravar `null`. Repetir o valor atual SHALL receber `200` sem alterar `archived_at`.
+O sistema SHALL expor `POST /boards/{id}/archive`, que carimba `archived_at` com o instante do arquivamento, e `POST /boards/{id}/restore`, que grava `null` em `archived_at`. Os dois SHALL responder `200` com o quadro. Arquivar quadro arquivado ou restaurar quadro ativo SHALL responder `200` sem alterar `archived_at`.
 
 #### Scenario: Quadro arquivado
 
 ```gherkin
 Given um quadro ativo
-When chega PATCH /boards/{id} com archived true
+When chega POST /boards/{id}/archive
 Then a resposta é 200 com archived_at preenchido
 And o quadro deixa de aparecer na listagem com archived "false"
 ```
@@ -276,7 +283,7 @@ And o quadro deixa de aparecer na listagem com archived "false"
 
 ```gherkin
 Given um quadro arquivado
-When chega PATCH /boards/{id} com archived false
+When chega POST /boards/{id}/restore
 Then a resposta é 200 com archived_at null
 And o quadro volta a aparecer na listagem com archived "false"
 ```
@@ -285,37 +292,36 @@ And o quadro volta a aparecer na listagem com archived "false"
 
 ```gherkin
 Given um quadro arquivado, com o archived_at guardado
-When chega PATCH /boards/{id} com archived true
+When chega POST /boards/{id}/archive
 Then a resposta é 200
 And archived_at continua igual ao guardado
 ```
 
-#### Scenario: Arquivamento junto com a edição
+#### Scenario: Restauração de quadro ativo
 
 ```gherkin
-Given um quadro ativo com name "Sprint 12"
-When chega PATCH /boards/{id} com name "Sprint 13" e archived true
-Then a resposta é 200 com name "Sprint 13"
-And archived_at vem preenchido
+Given um quadro ativo
+When chega POST /boards/{id}/restore
+Then a resposta é 200 com archived_at null
 ```
 
 ### Requirement: Carimbo de updated_at
 
-O sistema SHALL atualizar `updated_at` a cada alteração de valor do quadro. `PATCH` que não altera nenhum valor SHALL deixar `updated_at` intacto.
+O sistema SHALL atualizar `updated_at` a cada alteração de valor do quadro. Requisição que não altera nenhum valor SHALL deixar `updated_at` intacto.
 
 #### Scenario: Alteração carimba updated_at
 
 ```gherkin
 Given um quadro criado, com o updated_at guardado
-When chega PATCH /boards/{id} com name "Sprint 13"
+When chega PUT /boards/{id} com name "Sprint 13"
 Then updated_at fica maior que o guardado
 ```
 
 #### Scenario: Edição sem mudança de valor
 
 ```gherkin
-Given um quadro com name "Sprint 12", com o updated_at guardado
-When chega PATCH /boards/{id} com name "Sprint 12"
+Given um quadro com name "Sprint 12" e description "Trabalho da sprint", com o updated_at guardado
+When chega PUT /boards/{id} com name "Sprint 12" e description "Trabalho da sprint"
 Then updated_at continua igual ao guardado
 ```
 
@@ -354,6 +360,6 @@ Os endpoints de quadro SHALL aparecer no documento OpenAPI exposto pela aplicaç
 
 ```gherkin
 When o documento OpenAPI é solicitado
-Then ele descreve POST /boards, GET /boards, GET /boards/{id} e PATCH /boards/{id}
+Then ele descreve POST /boards, GET /boards, GET /boards/{id}, PUT /boards/{id}, POST /boards/{id}/archive e POST /boards/{id}/restore
 And lista os códigos de resposta de cada endpoint
 ```

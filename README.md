@@ -1,8 +1,8 @@
 # Kanban
 
-API REST em Spring Boot para gestão de quadros kanban. Cadastro de conta e login por token
-estão implementados (`POST /accounts`, `POST /auth/login`, `POST /auth/logout` e
-`GET /accounts/me`); quadro, coluna e card ainda não.
+API REST em Spring Boot para gestão de quadros kanban. Cadastro de conta, login por token e
+quadros estão implementados (`POST /accounts`, `POST /auth/login`, `POST /auth/logout`,
+`GET /accounts/me` e os endpoints de `/boards`); coluna e card ainda não.
 
 ## Requisitos
 
@@ -43,6 +43,12 @@ $ curl -X POST http://localhost:8080/auth/login -H "Content-Type: application/js
 $ curl http://localhost:8080/accounts/me -H "Authorization: Bearer kZ8x..."
 {"id":"3f1b...","email":"ana@exemplo.com","display_name":"Ana"}
 
+$ curl -X POST http://localhost:8080/boards -H "Authorization: Bearer kZ8x..." -H "Content-Type: application/json" -d '{"name": "Sprint 12", "description": "Trabalho da sprint"}'
+{"id":"9c4e...","name":"Sprint 12","description":"Trabalho da sprint","created_at":"2026-09-10T18:00:00.123-03:00","updated_at":"2026-09-10T18:00:00.123-03:00","archived_at":null}
+
+$ curl "http://localhost:8080/boards?archived=false" -H "Authorization: Bearer kZ8x..."
+[{"id":"9c4e...","name":"Sprint 12","description":"Trabalho da sprint","created_at":"2026-09-10T18:00:00.123-03:00","updated_at":"2026-09-10T18:00:00.123-03:00","archived_at":null}]
+
 $ curl -X POST http://localhost:8080/auth/logout -H "Authorization: Bearer kZ8x..."
 ```
 
@@ -55,6 +61,12 @@ token é opaco, aparece em claro só na resposta do login e fica no banco como h
 login emite um token independente, e `POST /auth/logout` revoga o da própria chamada e responde
 204. A validade é de 24 horas, pela propriedade `kanban.auth.token-ttl` do
 `application.properties`.
+
+Todo quadro pertence à conta do token. `GET /boards` lista do mais recente para o mais antigo e
+aceita `archived=true` ou `archived=false`; `PUT /boards/{id}` substitui `name` e `description`;
+`POST /boards/{id}/archive` e `POST /boards/{id}/restore` arquivam e restauram, e repetir a
+operação não altera o quadro. `name` é obrigatório, com até 100 caracteres, e `description` tem
+até 500. Quadro de outra conta responde 404, com o mesmo corpo de quadro inexistente.
 
 Para subir em outra porta:
 
@@ -120,13 +132,17 @@ que segue verde. O conjunto de mutadores é o `STRONGER`, mais agressivo que o p
 ./mvnw test-compile org.pitest:pitest-maven:mutationCoverage
 ```
 
-Não roda junto de `test`: a análise reexecuta a suíte por mutante e leva cerca de três minutos e
-meio, contra um minuto do `test`. O relatório fica em `target/pit-reports/index.html`, com cada
+Não roda junto de `test`: a análise reexecuta a suíte por mutante e leva cerca de vinte minutos. O relatório fica em `target/pit-reports/index.html`, com cada
 mutante listado sobre a linha que o originou. O build é reprovado abaixo de **80%** de mutantes
 mortos; `KanbanApplication` fica de fora, como no JaCoCo.
 
 O PIT também não enxerga regra declarativa: anotação e constraint de banco não viram bytecode
 mutável, então o limite descrito acima vale igual aqui.
+
+Código que o Spring executa uma vez por contexto, como os métodos `@Bean`, só tem os mutantes
+mortos por teste que chama a classe direto (`OpenApiResponsesConfigTest`) ou que recria o contexto
+(`SecurityConfigTest`). Com o contexto em cache, o PIT troca o bytecode depois que o bean já
+existe, e o teste de ponta a ponta continua verde.
 
 ## Build
 
@@ -159,7 +175,9 @@ src/main/java/com/william/kanban/
   KanbanApplication.java          ponto de entrada
   account/                        entidade, repositório, serviço, controller e records de JSON
   auth/                           token, login, logout, filtro Bearer e cadeia de filtros
+  board/                          entidade, repositório, serviço, controller e records de JSON
   shared/GlobalExceptionHandler   traduz as exceções em ProblemDetail
+  shared/OpenApiResponsesConfig   documenta as respostas de erro a partir da assinatura
 src/main/resources/
   application.properties          conexão por variável de ambiente e validação do schema
   db/migration/                   migrações do Flyway
@@ -169,7 +187,10 @@ src/test/java/com/william/kanban/
   account/AccountApiTest          endpoints de conta, de ponta a ponta
   account/AccountServiceTest      consulta por id fora da API
   auth/AuthApiTest                login, logout e requisição autenticada
+  auth/SecurityConfigTest         cadeia de filtros e encoder, com o contexto recriado a cada teste
+  board/BoardApiTest              endpoints de quadro, de ponta a ponta
   shared/GlobalExceptionHandlerTest   tradução das exceções, sem contexto Spring
+  shared/OpenApiResponsesConfigTest   regras de documentação do OpenAPI, sem contexto Spring
 ```
 
 ## Fluxo de mudanças
