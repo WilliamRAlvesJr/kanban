@@ -199,7 +199,8 @@ O repositório é spec-driven com OpenSpec (`openspec/`). As specs ficam em `ope
 mudanças em andamento em `openspec/changes/`, no ciclo `/opsx:propose`, `/opsx:apply`,
 `/opsx:verify`, `/opsx:archive`.
 
-Specs publicadas: `account-management` e `authentication`. Não há change em andamento.
+Specs publicadas: `account-management`, `authentication` e `board-management`. Não há change em
+andamento.
 
 O formato dos artefatos vem de `openspec/config.yaml`. As instruções para o agente estão no
 `CLAUDE.md`.
