@@ -9,17 +9,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccountService {
 
-	/** Hash de conta nenhuma: comparar contra ele iguala o custo do login com email não cadastrado ao do email conhecido. */
-	private static final String ABSENT_ACCOUNT_HASH =
-			"$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
-
 	private final AccountRepository repository;
 
 	private final PasswordEncoder encoder;
 
+	/** Hash de conta nenhuma: comparar contra ele iguala o custo do login com email não cadastrado ao do email conhecido. */
+	private final String absentAccountHash;
+
 	AccountService(AccountRepository repository, PasswordEncoder encoder) {
 		this.repository = repository;
 		this.encoder = encoder;
+		this.absentAccountHash = encoder.encode(UUID.randomUUID().toString());
 	}
 
 	Account create(String email, String displayName, String password) {
@@ -30,7 +30,7 @@ public class AccountService {
 	public Optional<UUID> authenticate(String email, String password) {
 		Optional<Account> account = repository.findByEmail(email.toLowerCase(Locale.ROOT));
 		if (account.isEmpty()) {
-			encoder.matches(password, ABSENT_ACCOUNT_HASH);
+			encoder.matches(password, absentAccountHash);
 			return Optional.empty();
 		}
 		if (!encoder.matches(password, account.get().getPasswordHash())) {

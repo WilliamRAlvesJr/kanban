@@ -107,7 +107,7 @@ class OpenApiResponsesConfigTest {
 				.findFirst()
 				.orElseThrow();
 		return config.errorResponsesFromSignature()
-				.customize(emptyOperation(), new HandlerMethod(new SampleController(), method))
+				.customize(emptyOperation(), new HandlerMethod(new Object(), method))
 				.getResponses();
 	}
 
@@ -124,7 +124,7 @@ class OpenApiResponsesConfigTest {
 		return new Operation().responses(new ApiResponses());
 	}
 
-	static class SampleController {
+	interface SampleController {
 
 		void withValidatedBody(
 
@@ -132,38 +132,32 @@ class OpenApiResponsesConfigTest {
 				@RequestBody
 				Object body
 
-		) {
-		}
+		);
 
 		void withRequestParam(
 
 				@RequestParam
 				String query
 
-		) {
-		}
+		);
 
 		void withAuthenticationPrincipal(
 
 				@AuthenticationPrincipal
 				UUID accountId
 
-		) {
-		}
+		);
 
-		void withAuthentication(Authentication authentication) {
-		}
+		void withAuthentication(Authentication authentication);
 
 		void withPathVariable(
 
 				@PathVariable
 				UUID id
 
-		) {
-		}
+		);
 
-		void withPlainParameter(String value) {
-		}
+		void withPlainParameter(String value);
 
 	}
 

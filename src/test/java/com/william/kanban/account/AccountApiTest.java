@@ -97,9 +97,11 @@ class AccountApiTest {
 
 	@Test
 	void databaseRejectsEmailNotNormalized() {
+		UUID id = UUID.randomUUID();
+
 		assertThatThrownBy(() -> jdbcTemplate.update(
 				"insert into accounts (id, email, display_name, password_hash) values (?, ?, ?, ?)",
-				UUID.randomUUID(), "Ana@Exemplo.com", "Ana", "hash"))
+				id, "Ana@Exemplo.com", "Ana", "hash"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 

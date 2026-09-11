@@ -23,7 +23,7 @@ class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http, BearerAuthenticationFilter filter,
-			ProblemDetailAuthenticationEntryPoint entryPoint) throws Exception {
+			ProblemDetailAuthenticationEntryPoint entryPoint) {
 		return http.csrf(CsrfConfigurer::disable)
 				.httpBasic(HttpBasicConfigurer::disable)
 				.formLogin(FormLoginConfigurer::disable)
