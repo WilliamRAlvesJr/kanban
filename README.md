@@ -144,6 +144,32 @@ mortos por teste que chama a classe direto (`OpenApiResponsesConfigTest`) ou que
 (`SecurityConfigTest`). Com o contexto em cache, o PIT troca o bytecode depois que o bean já
 existe, e o teste de ponta a ponta continua verde.
 
+## Análise estática
+
+O SonarQube Community Build roda em container, no profile `sonar` do `compose.yaml`, com um
+Postgres próprio (`kanban-sonarqube-db`). `docker compose up -d` sem o profile não sobe nenhum
+dos dois. Juntos ocupam cerca de 2 GB de RAM.
+
+```bash
+docker compose --profile sonar up -d            # sobe em http://localhost:9000
+docker compose stop sonarqube sonarqube-db      # para
+```
+
+A subida leva cerca de um minuto e termina quando `http://localhost:9000/api/system/status`
+responde `"status":"UP"`. No primeiro acesso o login é `admin` com senha `admin`, e a interface
+exige a troca. O token sai de **My Account > Security**, com o tipo **Global Analysis Token**:
+
+```bash
+export SONAR_TOKEN=<token>
+./mvnw clean verify sonar:sonar
+```
+
+`sonar:sonar` não roda testes: lê as classes compiladas e o `target/site/jacoco/jacoco.xml` que o
+`verify` deixou. `KanbanApplication` fica fora da cobertura, como no JaCoCo. O resultado fica em
+http://localhost:9000/dashboard?id=com.william%3Akanban.
+
+O Community Build guarda uma branch só: analisar outra substitui o resultado anterior.
+
 ## Build
 
 ```bash
@@ -162,6 +188,7 @@ existe, e o teste de ponta a ponta continua verde.
   `BCryptPasswordEncoder` e pela cadeia de filtros que resolve o token
 - Testes com `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` e Testcontainers
 - Cobertura com `jacoco-maven-plugin` 0.8.13
+- Análise estática com SonarQube Community Build 26.9, em container, e `sonar-maven-plugin` 5.8
 
 A linha 3.x do springdoc é a compatível com Spring Boot 4; a 2.x atende o Boot 3.
 
