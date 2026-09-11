@@ -4,10 +4,11 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class BoardService {
+public class BoardService {
 
 	private final BoardRepository repository;
 
@@ -17,6 +18,17 @@ class BoardService {
 
 	Board create(UUID ownerId, String name, String description) {
 		return repository.save(new Board(ownerId, name, description));
+	}
+
+	public void requireOwned(UUID id, UUID ownerId) {
+		findById(id, ownerId);
+	}
+
+	/** Trava a linha do quadro até o fim da transação de quem chama. */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void lockOwned(UUID id, UUID ownerId) {
+		repository.findWithLockByIdAndOwnerId(id, ownerId)
+				.orElseThrow(() -> new BoardNotFoundException(id));
 	}
 
 	Board findById(UUID id, UUID ownerId) {

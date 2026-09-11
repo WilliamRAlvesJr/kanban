@@ -3,6 +3,8 @@ package com.william.kanban.shared;
 import com.william.kanban.account.AccountNotFoundException;
 import com.william.kanban.auth.InvalidCredentialsException;
 import com.william.kanban.board.BoardNotFoundException;
+import com.william.kanban.lane.LaneNotFoundException;
+import com.william.kanban.lane.LaneOrderMismatchException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -25,9 +27,15 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Email já cadastrado.");
 	}
 
-	@ExceptionHandler({AccountNotFoundException.class, BoardNotFoundException.class})
+	@ExceptionHandler({AccountNotFoundException.class, BoardNotFoundException.class,
+			LaneNotFoundException.class})
 	ProblemDetail handleNotFound(RuntimeException e) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+	}
+
+	@ExceptionHandler(LaneOrderMismatchException.class)
+	ProblemDetail handleLaneOrderMismatch(LaneOrderMismatchException e) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
 	}
 
 	@ExceptionHandler(InvalidCredentialsException.class)

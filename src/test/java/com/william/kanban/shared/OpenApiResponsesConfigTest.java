@@ -66,7 +66,7 @@ class OpenApiResponsesConfigTest {
 
 	@Test
 	void registersProblemDetailSchema() {
-		OpenAPI openApi = documentWithAccountAndLoginRoutes();
+		OpenAPI openApi = documentWithCustomizedRoutes();
 
 		config.errorResponsesOutsideSignature().customise(openApi);
 
@@ -75,7 +75,7 @@ class OpenApiResponsesConfigTest {
 
 	@Test
 	void documents409ForAccountCreation() {
-		OpenAPI openApi = documentWithAccountAndLoginRoutes();
+		OpenAPI openApi = documentWithCustomizedRoutes();
 
 		config.errorResponsesOutsideSignature().customise(openApi);
 
@@ -84,11 +84,21 @@ class OpenApiResponsesConfigTest {
 
 	@Test
 	void documents401ForLogin() {
-		OpenAPI openApi = documentWithAccountAndLoginRoutes();
+		OpenAPI openApi = documentWithCustomizedRoutes();
 
 		config.errorResponsesOutsideSignature().customise(openApi);
 
 		assertThat(openApi.getPaths().get("/auth/login").getPost().getResponses()).containsOnlyKeys("401");
+	}
+
+	@Test
+	void documents409ForLaneReorder() {
+		OpenAPI openApi = documentWithCustomizedRoutes();
+
+		config.errorResponsesOutsideSignature().customise(openApi);
+
+		assertThat(openApi.getPaths().get("/boards/{boardId}/lanes/order").getPut().getResponses())
+				.containsOnlyKeys("409");
 	}
 
 	private ApiResponses responsesOf(String methodName) {
@@ -101,12 +111,13 @@ class OpenApiResponsesConfigTest {
 				.getResponses();
 	}
 
-	private OpenAPI documentWithAccountAndLoginRoutes() {
+	private OpenAPI documentWithCustomizedRoutes() {
 		return new OpenAPI()
 				.components(new Components())
 				.paths(new Paths()
 						.addPathItem("/accounts", new PathItem().post(emptyOperation()))
-						.addPathItem("/auth/login", new PathItem().post(emptyOperation())));
+						.addPathItem("/auth/login", new PathItem().post(emptyOperation()))
+						.addPathItem("/boards/{boardId}/lanes/order", new PathItem().put(emptyOperation())));
 	}
 
 	private Operation emptyOperation() {

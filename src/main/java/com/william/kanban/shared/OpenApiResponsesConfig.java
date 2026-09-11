@@ -48,6 +48,8 @@ class OpenApiResponsesConfig {
 			ModelConverters.getInstance().read(ProblemDetail.class).forEach(openApi.getComponents()::addSchemas);
 			addProblem(openApi.getPaths().get("/accounts").getPost(), "409", "Email já cadastrado");
 			addProblem(openApi.getPaths().get("/auth/login").getPost(), "401", "Email ou senha inválidos");
+			addProblem(openApi.getPaths().get("/boards/{boardId}/lanes/order").getPut(), "409",
+					"Lista diferente das lanes ativas do quadro");
 		};
 	}
 
