@@ -9,15 +9,13 @@ import org.springframework.data.jpa.repository.Lock;
 
 interface BoardRepository extends JpaRepository<Board, UUID> {
 
-	Optional<Board> findByIdAndOwnerId(UUID id, UUID ownerId);
-
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	Optional<Board> findWithLockByIdAndOwnerId(UUID id, UUID ownerId);
+	Optional<Board> findWithLockById(UUID id);
 
-	List<Board> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
+	List<Board> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
 
-	List<Board> findByOwnerIdAndArchivedAtIsNullOrderByCreatedAtDesc(UUID ownerId);
+	List<Board> findByProjectIdAndArchivedAtIsNullOrderByCreatedAtDesc(UUID projectId);
 
-	List<Board> findByOwnerIdAndArchivedAtIsNotNullOrderByCreatedAtDesc(UUID ownerId);
+	List<Board> findByProjectIdAndArchivedAtIsNotNullOrderByCreatedAtDesc(UUID projectId);
 
 }

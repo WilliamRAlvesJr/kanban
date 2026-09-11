@@ -1,15 +1,12 @@
-package com.william.kanban.board;
+package com.william.kanban.project;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-record BoardResponse(
+record ProjectResponse(
 
 		UUID id,
-
-		@JsonProperty("project_id")
-		UUID projectId,
 
 		String name,
 

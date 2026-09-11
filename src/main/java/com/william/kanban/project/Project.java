@@ -1,4 +1,4 @@
-package com.william.kanban.board;
+package com.william.kanban.project;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,13 +10,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "boards")
-class Board {
+@Table(name = "projects")
+class Project {
 
 	@Id
 	private UUID id;
 
-	private UUID projectId;
+	private UUID ownerId;
 
 	private String name;
 
@@ -31,12 +31,12 @@ class Board {
 
 	private OffsetDateTime archivedAt;
 
-	protected Board() {
+	protected Project() {
 	}
 
-	Board(UUID projectId, String name, String description) {
+	Project(UUID ownerId, String name, String description) {
 		this.id = UUID.randomUUID();
-		this.projectId = projectId;
+		this.ownerId = ownerId;
 		this.name = name;
 		this.description = description;
 	}
@@ -45,12 +45,8 @@ class Board {
 		return id;
 	}
 
-	UUID getProjectId() {
-		return projectId;
-	}
-
-	void setProjectId(UUID projectId) {
-		this.projectId = projectId;
+	UUID getOwnerId() {
+		return ownerId;
 	}
 
 	String getName() {

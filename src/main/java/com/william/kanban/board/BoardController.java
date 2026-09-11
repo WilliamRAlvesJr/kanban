@@ -10,13 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/boards")
 class BoardController {
 
 	private final BoardService service;
@@ -25,35 +23,41 @@ class BoardController {
 		this.service = service;
 	}
 
-	@PostMapping
+	@PostMapping("/projects/{projectId}/boards")
 	@ResponseStatus(HttpStatus.CREATED)
 	BoardResponse create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
 
+			@PathVariable
+			UUID projectId,
+
 			@Valid
 			@RequestBody
 			CreateBoardRequest request
 
 	) {
-		return toResponse(service.create(accountId, request.name(), request.description()));
+		return toResponse(service.create(projectId, accountId, request.name(), request.description()));
 	}
 
-	@GetMapping
+	@GetMapping("/projects/{projectId}/boards")
 	List<BoardResponse> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
 
+			@PathVariable
+			UUID projectId,
+
 			@RequestParam(required = false)
 			Boolean archived
 
 	) {
-		return service.list(accountId, archived).stream().map(this::toResponse).toList();
+		return service.list(projectId, accountId, archived).stream().map(this::toResponse).toList();
 	}
 
-	@GetMapping("/{id}")
+	@GetMapping("/boards/{id}")
 	BoardResponse findById(
 
 			@AuthenticationPrincipal
@@ -66,7 +70,7 @@ class BoardController {
 		return toResponse(service.findById(id, accountId));
 	}
 
-	@PutMapping("/{id}")
+	@PutMapping("/boards/{id}")
 	BoardResponse update(
 
 			@AuthenticationPrincipal
@@ -83,7 +87,7 @@ class BoardController {
 		return toResponse(service.update(id, accountId, request.name(), request.description()));
 	}
 
-	@PostMapping("/{id}/archive")
+	@PostMapping("/boards/{id}/archive")
 	BoardResponse archive(
 
 			@AuthenticationPrincipal
@@ -96,7 +100,7 @@ class BoardController {
 		return toResponse(service.archive(id, accountId));
 	}
 
-	@PostMapping("/{id}/restore")
+	@PostMapping("/boards/{id}/restore")
 	BoardResponse restore(
 
 			@AuthenticationPrincipal
@@ -109,8 +113,25 @@ class BoardController {
 		return toResponse(service.restore(id, accountId));
 	}
 
+	@PostMapping("/boards/{id}/move")
+	BoardResponse move(
+
+			@AuthenticationPrincipal
+			UUID accountId,
+
+			@PathVariable
+			UUID id,
+
+			@Valid
+			@RequestBody
+			MoveBoardRequest request
+
+	) {
+		return toResponse(service.move(id, accountId, request.projectId()));
+	}
+
 	private BoardResponse toResponse(Board board) {
-		return new BoardResponse(board.getId(), board.getName(), board.getDescription(),
+		return new BoardResponse(board.getId(), board.getProjectId(), board.getName(), board.getDescription(),
 				board.getCreatedAt(), board.getUpdatedAt(), board.getArchivedAt());
 	}
 

@@ -31,7 +31,7 @@ class SecurityConfigTest {
 
 	@Test
 	void rejectsProtectedRouteWithoutToken() throws Exception {
-		mockMvc.perform(get("/boards")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/projects")).andExpect(status().isUnauthorized());
 	}
 
 	@Test

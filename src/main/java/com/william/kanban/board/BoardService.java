@@ -1,5 +1,6 @@
 package com.william.kanban.board;
 
+import com.william.kanban.project.ProjectService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -12,12 +13,16 @@ public class BoardService {
 
 	private final BoardRepository repository;
 
-	BoardService(BoardRepository repository) {
+	private final ProjectService projectService;
+
+	BoardService(BoardRepository repository, ProjectService projectService) {
 		this.repository = repository;
+		this.projectService = projectService;
 	}
 
-	Board create(UUID ownerId, String name, String description) {
-		return repository.save(new Board(ownerId, name, description));
+	Board create(UUID projectId, UUID ownerId, String name, String description) {
+		projectService.requireOwned(projectId, ownerId);
+		return repository.save(new Board(projectId, name, description));
 	}
 
 	public void requireOwned(UUID id, UUID ownerId) {
@@ -27,12 +32,14 @@ public class BoardService {
 	/** Trava a linha do quadro até o fim da transação de quem chama. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void lockOwned(UUID id, UUID ownerId) {
-		repository.findWithLockByIdAndOwnerId(id, ownerId)
+		repository.findWithLockById(id)
+				.filter(board -> projectService.isOwned(board.getProjectId(), ownerId))
 				.orElseThrow(() -> new BoardNotFoundException(id));
 	}
 
 	Board findById(UUID id, UUID ownerId) {
-		return repository.findByIdAndOwnerId(id, ownerId)
+		return repository.findById(id)
+				.filter(board -> projectService.isOwned(board.getProjectId(), ownerId))
 				.orElseThrow(() -> new BoardNotFoundException(id));
 	}
 
@@ -60,13 +67,22 @@ public class BoardService {
 		return board;
 	}
 
-	List<Board> list(UUID ownerId, Boolean archived) {
+	@Transactional
+	Board move(UUID id, UUID ownerId, UUID projectId) {
+		Board board = findById(id, ownerId);
+		projectService.requireOwned(projectId, ownerId);
+		board.setProjectId(projectId);
+		return board;
+	}
+
+	List<Board> list(UUID projectId, UUID ownerId, Boolean archived) {
+		projectService.requireOwned(projectId, ownerId);
 		if (archived == null) {
-			return repository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
+			return repository.findByProjectIdOrderByCreatedAtDesc(projectId);
 		}
 		return archived
-				? repository.findByOwnerIdAndArchivedAtIsNotNullOrderByCreatedAtDesc(ownerId)
-				: repository.findByOwnerIdAndArchivedAtIsNullOrderByCreatedAtDesc(ownerId);
+				? repository.findByProjectIdAndArchivedAtIsNotNullOrderByCreatedAtDesc(projectId)
+				: repository.findByProjectIdAndArchivedAtIsNullOrderByCreatedAtDesc(projectId);
 	}
 
 }

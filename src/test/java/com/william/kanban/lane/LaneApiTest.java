@@ -790,7 +790,17 @@ class LaneApiTest {
 	}
 
 	private String createBoard(String token) throws Exception {
-		String response = mockMvc.perform(post("/boards")
+		String project = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name": "Produto"}
+								"""))
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		String response = mockMvc.perform(post("/projects/" + JsonPath.read(project, "$.id") + "/boards")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""

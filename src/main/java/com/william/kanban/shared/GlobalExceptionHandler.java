@@ -5,6 +5,7 @@ import com.william.kanban.auth.InvalidCredentialsException;
 import com.william.kanban.board.BoardNotFoundException;
 import com.william.kanban.lane.LaneNotFoundException;
 import com.william.kanban.lane.LaneOrderMismatchException;
+import com.william.kanban.project.ProjectNotFoundException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -28,7 +29,7 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	@ExceptionHandler({AccountNotFoundException.class, BoardNotFoundException.class,
-			LaneNotFoundException.class})
+			LaneNotFoundException.class, ProjectNotFoundException.class})
 	ProblemDetail handleNotFound(RuntimeException e) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
 	}
