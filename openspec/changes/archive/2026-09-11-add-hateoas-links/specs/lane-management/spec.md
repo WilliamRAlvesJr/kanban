@@ -1,8 +1,15 @@
-## Purpose
+## MODIFIED Requirements
 
-Lanes de um quadro do kanban, na ordem definida pelo dono, com criação, edição, arquivamento reversível e reordenação. Nenhuma conta enxerga nem altera lane de quadro de outra conta.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
+- Criação de lane: descrição; cenários "Lane criada em quadro vazio" e "Lane criada no fim".
+- Listagem das lanes do quadro: descrição; cenário "Links da listagem".
+- Isolamento entre donos: cenário "Endpoint de lane em quadro alheio".
+- Lane fora do quadro da URL: descrição; cenário "Lane de outro quadro".
+- Substituição do nome: descrição; cenários "Nome substituído" e "Lane arquivada renomeada".
+- Arquivamento reversível: descrição; cenários "Lane arquivada", "Lane restaurada", "Arquivamento repetido" e "Restauração de lane ativa".
+- Reordenação das lanes ativas: descrição; cenários "Ordem regravada", "Lane arquivada fora da ordem" e "Quadro sem lanes ativas".
+- Endpoints documentados no OpenAPI: cenário "OpenAPI lista os endpoints".
 
 ### Requirement: Criação de lane
 
@@ -35,40 +42,6 @@ Given um quadro com a lane ativa "A fazer"
 When chega POST /boards/{boardId}/lanes com name "A fazer"
 Then a resposta é 201
 And o quadro passa a ter duas lanes com name "A fazer"
-```
-
-### Requirement: Validação do nome da lane
-
-`POST /boards/{boardId}/lanes` e `PUT /boards/{boardId}/lanes/{laneId}` com `name` ausente, vazio ou acima de 100 caracteres SHALL receber `400`. Nenhuma lane SHALL ser criada ou alterada nesses casos.
-
-#### Scenario: Nome inválido na criação
-
-```gherkin
-Given um quadro sem lanes da conta do token
-When chega POST /boards/{boardId}/lanes com <entrada>
-Then a resposta é 400
-And nenhuma lane é criada
-
-Examples:
-  | entrada                |
-  | o campo name ausente   |
-  | name ""                |
-  | name de 101 caracteres |
-```
-
-#### Scenario: Nome inválido na substituição
-
-```gherkin
-Given uma lane com name "A fazer"
-When chega PUT /boards/{boardId}/lanes/{laneId} com <entrada>
-Then a resposta é 400
-And a lane continua com name "A fazer"
-
-Examples:
-  | entrada                |
-  | o campo name ausente   |
-  | name ""                |
-  | name de 101 caracteres |
 ```
 
 ### Requirement: Listagem das lanes do quadro
@@ -131,55 +104,6 @@ Then _links traz somente self, create-lane, reorder-lanes e board
 And self e create-lane têm href "/boards/{boardId}/lanes"
 And reorder-lanes tem href "/boards/{boardId}/lanes/order"
 And board tem href "/boards/{boardId}"
-```
-
-### Requirement: Consulta de uma lane
-
-O sistema SHALL expor `GET /boards/{boardId}/lanes/{laneId}`, que devolve `200` com a lane do quadro da URL, ativa ou arquivada.
-
-#### Scenario: Lane ativa
-
-```gherkin
-Given um quadro da conta do token com as lanes ativas "A fazer" em 0 e "Feito" em 1
-When chega GET /boards/{boardId}/lanes/{laneId} de "Feito"
-Then a resposta é 200 com id, name "Feito", position 1, created_at, updated_at e archived_at null
-```
-
-#### Scenario: Lane arquivada
-
-```gherkin
-Given um quadro da conta do token com a lane arquivada "Descartadas"
-When chega GET /boards/{boardId}/lanes/{laneId} de "Descartadas"
-Then a resposta é 200 com position null
-And archived_at traz o instante do arquivamento
-```
-
-### Requirement: Links da lane
-
-Toda lane em `GET /boards/{boardId}/lanes/{laneId}` e em `_embedded.lanes` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só na lane com `archived_at` null, e `restore` só na lane arquivada.
-
-| relação | href |
-|---|---|
-| `self` | `/boards/{boardId}/lanes/{id}` |
-| `edit` | `/boards/{boardId}/lanes/{id}` |
-| `archive` | `/boards/{boardId}/lanes/{id}/archive` |
-| `restore` | `/boards/{boardId}/lanes/{id}/restore` |
-| `board` | `/boards/{boardId}` |
-
-#### Scenario: Links da lane ativa
-
-```gherkin
-Given uma lane ativa num quadro da conta do token
-When chega GET /boards/{boardId}/lanes/{laneId} dessa lane
-Then _links traz somente self, edit, archive e board
-```
-
-#### Scenario: Links da lane arquivada
-
-```gherkin
-Given uma lane arquivada num quadro da conta do token
-When chega GET /boards/{boardId}/lanes/{laneId} dessa lane
-Then _links traz somente self, edit, restore e board
 ```
 
 ### Requirement: Isolamento entre donos
@@ -377,110 +301,6 @@ Examples:
   | lane_ids de "Feito", "A fazer" e um id que nunca existiu |
 ```
 
-### Requirement: Sequência de posições
-
-As lanes ativas de um quadro SHALL ter `position` de `0` a `n - 1`, sem buraco e sem repetição, depois de qualquer combinação de requisições ao quadro, inclusive simultâneas. Lane arquivada SHALL ter `position` `null`.
-
-#### Scenario: Criações simultâneas
-
-```gherkin
-Given um quadro sem lanes da conta do token
-When chegam ao mesmo tempo dez POST /boards/{boardId}/lanes
-Then as dez respostas são 201
-And as lanes do quadro têm position de 0 a 9, sem repetição
-```
-
-#### Scenario: Arquivamento e criação simultâneos
-
-```gherkin
-Given um quadro com as lanes ativas "A fazer" em 0, "Fazendo" em 1 e "Feito" em 2
-When chegam ao mesmo tempo POST /boards/{boardId}/lanes/{laneId}/archive de "Fazendo" e POST /boards/{boardId}/lanes com name "Revisão"
-Then as duas respostas são 200 e 201
-And as lanes ativas do quadro têm position de 0 a 2, sem repetição
-```
-
-### Requirement: Carimbo de updated_at
-
-O sistema SHALL atualizar `updated_at` da lane quando `name` ou `archived_at` mudar. Mudança de `position` SHALL NOT atualizar `updated_at`, e requisição que não altera nenhum valor SHALL deixar `updated_at` intacto.
-
-#### Scenario: Renomeação carimba updated_at
-
-```gherkin
-Given uma lane com name "A fazer", com o updated_at guardado
-When chega PUT /boards/{boardId}/lanes/{laneId} com name "Backlog"
-Then updated_at fica maior que o guardado
-```
-
-#### Scenario: Renomeação sem mudança de valor
-
-```gherkin
-Given uma lane com name "A fazer", com o updated_at guardado
-When chega PUT /boards/{boardId}/lanes/{laneId} com name "A fazer"
-Then updated_at continua igual ao guardado
-```
-
-#### Scenario: Arquivamento carimba updated_at
-
-```gherkin
-Given uma lane ativa, com o updated_at guardado
-When chega POST /boards/{boardId}/lanes/{laneId}/archive
-Then updated_at fica maior que o guardado
-```
-
-#### Scenario: Restauração carimba updated_at
-
-```gherkin
-Given uma lane arquivada, com o updated_at guardado
-When chega POST /boards/{boardId}/lanes/{laneId}/restore
-Then updated_at fica maior que o guardado
-```
-
-#### Scenario: Arquivamento sem mudança de valor
-
-```gherkin
-Given uma lane arquivada, com o updated_at guardado
-When chega POST /boards/{boardId}/lanes/{laneId}/archive
-Then updated_at continua igual ao guardado
-```
-
-#### Scenario: Lane deslocada pelo arquivamento
-
-```gherkin
-Given um quadro com as lanes ativas "A fazer" em 0 e "Feito" em 1, com o updated_at de "Feito" guardado
-When chega POST /boards/{boardId}/lanes/{laneId}/archive de "A fazer"
-Then "Feito" passa para 0
-And o updated_at de "Feito" continua igual ao guardado
-```
-
-#### Scenario: Reordenação não carimba updated_at
-
-```gherkin
-Given um quadro com as lanes ativas "A fazer" em 0 e "Feito" em 1, com o updated_at das duas guardado
-When chega PUT /boards/{boardId}/lanes/order com lane_ids de "Feito" e "A fazer"
-Then o updated_at das duas continua igual ao guardado
-```
-
-### Requirement: Lanes apagadas com o quadro
-
-Apagar a linha do quadro em `boards` SHALL apagar as lanes dele, ativas ou arquivadas. Nenhuma lane SHALL permanecer sem quadro.
-
-#### Scenario: Quadro apagado
-
-```gherkin
-Given dois quadros, cada um com uma lane ativa e uma lane arquivada
-When a linha do primeiro quadro é apagada de boards
-Then nenhuma lane do primeiro quadro permanece em lanes
-And as lanes do segundo quadro continuam em lanes
-```
-
-#### Scenario: Conta apagada
-
-```gherkin
-Given uma conta com um quadro que tem uma lane ativa e uma lane arquivada
-When a linha dessa conta é apagada de accounts
-Then nenhuma lane desse quadro permanece em lanes
-```
-
 ### Requirement: Endpoints documentados no OpenAPI
 
 Os endpoints de lane SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
@@ -491,4 +311,55 @@ Os endpoints de lane SHALL aparecer no documento OpenAPI exposto pela aplicaçã
 When o documento OpenAPI é solicitado
 Then ele descreve POST /boards/{boardId}/lanes, GET /boards/{boardId}/lanes, GET /boards/{boardId}/lanes/{laneId}, PUT /boards/{boardId}/lanes/{laneId}, POST /boards/{boardId}/lanes/{laneId}/archive, POST /boards/{boardId}/lanes/{laneId}/restore e PUT /boards/{boardId}/lanes/order
 And lista os códigos de resposta de cada endpoint, com o 409 de PUT /boards/{boardId}/lanes/order
+```
+
+## ADDED Requirements
+
+### Requirement: Consulta de uma lane
+
+O sistema SHALL expor `GET /boards/{boardId}/lanes/{laneId}`, que devolve `200` com a lane do quadro da URL, ativa ou arquivada.
+
+#### Scenario: Lane ativa
+
+```gherkin
+Given um quadro da conta do token com as lanes ativas "A fazer" em 0 e "Feito" em 1
+When chega GET /boards/{boardId}/lanes/{laneId} de "Feito"
+Then a resposta é 200 com id, name "Feito", position 1, created_at, updated_at e archived_at null
+```
+
+#### Scenario: Lane arquivada
+
+```gherkin
+Given um quadro da conta do token com a lane arquivada "Descartadas"
+When chega GET /boards/{boardId}/lanes/{laneId} de "Descartadas"
+Then a resposta é 200 com position null
+And archived_at traz o instante do arquivamento
+```
+
+### Requirement: Links da lane
+
+Toda lane em `GET /boards/{boardId}/lanes/{laneId}` e em `_embedded.lanes` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só na lane com `archived_at` null, e `restore` só na lane arquivada.
+
+| relação | href |
+|---|---|
+| `self` | `/boards/{boardId}/lanes/{id}` |
+| `edit` | `/boards/{boardId}/lanes/{id}` |
+| `archive` | `/boards/{boardId}/lanes/{id}/archive` |
+| `restore` | `/boards/{boardId}/lanes/{id}/restore` |
+| `board` | `/boards/{boardId}` |
+
+#### Scenario: Links da lane ativa
+
+```gherkin
+Given uma lane ativa num quadro da conta do token
+When chega GET /boards/{boardId}/lanes/{laneId} dessa lane
+Then _links traz somente self, edit, archive e board
+```
+
+#### Scenario: Links da lane arquivada
+
+```gherkin
+Given uma lane arquivada num quadro da conta do token
+When chega GET /boards/{boardId}/lanes/{laneId} dessa lane
+Then _links traz somente self, edit, restore e board
 ```

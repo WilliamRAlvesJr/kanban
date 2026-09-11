@@ -1,9 +1,13 @@
 package com.william.kanban.board;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,13 +23,16 @@ class BoardController {
 
 	private final BoardService service;
 
-	BoardController(BoardService service) {
+	private final BoardModelAssembler assembler;
+
+	BoardController(BoardService service, BoardModelAssembler assembler) {
 		this.service = service;
+		this.assembler = assembler;
 	}
 
 	@PostMapping("/projects/{projectId}/boards")
 	@ResponseStatus(HttpStatus.CREATED)
-	BoardResponse create(
+	ResponseEntity<RepresentationModel<?>> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -38,11 +45,13 @@ class BoardController {
 			CreateBoardRequest request
 
 	) {
-		return toResponse(service.create(projectId, accountId, request.name(), request.description()));
+		RepresentationModel<?> model =
+				assembler.selfOf(service.create(projectId, accountId, request.name(), request.description()));
+		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
 	}
 
 	@GetMapping("/projects/{projectId}/boards")
-	List<BoardResponse> list(
+	CollectionModel<?> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -54,11 +63,11 @@ class BoardController {
 			Boolean archived
 
 	) {
-		return service.list(projectId, accountId, archived).stream().map(this::toResponse).toList();
+		return assembler.toCollection(service.list(projectId, accountId, archived), projectId);
 	}
 
 	@GetMapping("/boards/{id}")
-	BoardResponse findById(
+	EntityModel<BoardResponse> findById(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -67,11 +76,11 @@ class BoardController {
 			UUID id
 
 	) {
-		return toResponse(service.findById(id, accountId));
+		return assembler.toModel(service.findById(id, accountId));
 	}
 
 	@PutMapping("/boards/{id}")
-	BoardResponse update(
+	RepresentationModel<?> update(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -84,11 +93,11 @@ class BoardController {
 			UpdateBoardRequest request
 
 	) {
-		return toResponse(service.update(id, accountId, request.name(), request.description()));
+		return assembler.selfOf(service.update(id, accountId, request.name(), request.description()));
 	}
 
 	@PostMapping("/boards/{id}/archive")
-	BoardResponse archive(
+	RepresentationModel<?> archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -97,11 +106,11 @@ class BoardController {
 			UUID id
 
 	) {
-		return toResponse(service.archive(id, accountId));
+		return assembler.selfOf(service.archive(id, accountId));
 	}
 
 	@PostMapping("/boards/{id}/restore")
-	BoardResponse restore(
+	RepresentationModel<?> restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -110,11 +119,11 @@ class BoardController {
 			UUID id
 
 	) {
-		return toResponse(service.restore(id, accountId));
+		return assembler.selfOf(service.restore(id, accountId));
 	}
 
 	@PostMapping("/boards/{id}/move")
-	BoardResponse move(
+	RepresentationModel<?> move(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -127,12 +136,7 @@ class BoardController {
 			MoveBoardRequest request
 
 	) {
-		return toResponse(service.move(id, accountId, request.projectId()));
-	}
-
-	private BoardResponse toResponse(Board board) {
-		return new BoardResponse(board.getId(), board.getProjectId(), board.getName(), board.getDescription(),
-				board.getCreatedAt(), board.getUpdatedAt(), board.getArchivedAt());
+		return assembler.selfOf(service.move(id, accountId, request.projectId()));
 	}
 
 }

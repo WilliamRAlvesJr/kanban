@@ -2,6 +2,7 @@ package com.william.kanban.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -50,10 +51,11 @@ class AccountApiTest {
 								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
 								"""))
 				.andExpect(status().isCreated())
-				.andExpect(header().doesNotExist("Location"))
-				.andExpect(jsonPath("$.id").isNotEmpty())
-				.andExpect(jsonPath("$.email").value("ana@exemplo.com"))
-				.andExpect(jsonPath("$.display_name").value("Ana"));
+				.andExpect(header().string(HttpHeaders.LOCATION, "/accounts/me"))
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(2)))
+				.andExpect(jsonPath("$._links.self.href").value("/accounts/me"))
+				.andExpect(jsonPath("$._links.login.href").value("/auth/login"));
 	}
 
 	@Test
@@ -63,8 +65,7 @@ class AccountApiTest {
 						.content("""
 								{"email": "Ana@Exemplo.com", "display_name": "Ana", "password": "segredo"}
 								"""))
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.email").value("ana@exemplo.com"));
+				.andExpect(status().isCreated());
 
 		assertThat(jdbcTemplate.queryForObject("select email from accounts", String.class))
 				.isEqualTo("ana@exemplo.com");
@@ -90,9 +91,27 @@ class AccountApiTest {
 
 		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOfAna()))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", aMapWithSize(4)))
 				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.email").exists())
+				.andExpect(jsonPath("$.display_name").exists())
+				.andExpect(jsonPath("$._links").exists())
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.password_hash").doesNotExist());
+	}
+
+	@Test
+	void returnsAccountOfTokenWithLinks() throws Exception {
+		String id = createAna();
+
+		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOfAna()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.email").value("ana@exemplo.com"))
+				.andExpect(jsonPath("$.display_name").value("Ana"))
+				.andExpect(jsonPath("$._links", aMapWithSize(2)))
+				.andExpect(jsonPath("$._links.self.href").value("/accounts/me"))
+				.andExpect(jsonPath("$._links.projects.href").value("/projects"));
 	}
 
 	@Test
@@ -181,20 +200,18 @@ class AccountApiTest {
 				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.401").exists())
 				.andExpect(jsonPath("$.components.schemas.CreateAccountRequest.properties.display_name").exists())
-				.andExpect(jsonPath("$.components.schemas.AccountResponse.properties.display_name").exists());
+				.andExpect(jsonPath("$.components.schemas.EntityModelAccountResponse.properties.display_name").exists());
 	}
 
 	private String createAna() throws Exception {
-		String body = mockMvc.perform(post("/accounts")
+		mockMvc.perform(post("/accounts")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
 								"""))
-				.andExpect(status().isCreated())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(body, "$.id");
+				.andExpect(status().isCreated());
+		return jdbcTemplate.queryForObject(
+				"select id from accounts where email = ?", UUID.class, "ana@exemplo.com").toString();
 	}
 
 	private String tokenOfAna() throws Exception {

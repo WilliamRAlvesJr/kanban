@@ -1,13 +1,16 @@
 package com.william.kanban.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import com.william.kanban.TestcontainersConfiguration;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,7 +49,11 @@ class AuthApiTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.token").isNotEmpty())
 				.andExpect(jsonPath("$.token_type").value("Bearer"))
-				.andExpect(jsonPath("$.expires_at").isNotEmpty());
+				.andExpect(jsonPath("$.expires_at").isNotEmpty())
+				.andExpect(jsonPath("$._links", aMapWithSize(2)))
+				.andExpect(jsonPath("$._links.me.href").value("/accounts/me"))
+				.andExpect(jsonPath("$._links.logout.href").value("/auth/logout"))
+				.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
 	}
 
 	@Test
@@ -255,9 +262,9 @@ class AuthApiTest {
 				.andExpect(jsonPath("$.components.securitySchemes.bearer.type").value("http"))
 				.andExpect(jsonPath("$.components.securitySchemes.bearer.scheme").value("bearer"))
 				.andExpect(
-						jsonPath("$.components.schemas.LoginResponse.properties.token_type").exists())
+						jsonPath("$.components.schemas.EntityModelLoginResponse.properties.token_type").exists())
 				.andExpect(
-						jsonPath("$.components.schemas.LoginResponse.properties.expires_at").exists());
+						jsonPath("$.components.schemas.EntityModelLoginResponse.properties.expires_at").exists());
 	}
 
 	private MockHttpServletRequestBuilder login(String email, String password) {
@@ -280,15 +287,12 @@ class AuthApiTest {
 	}
 
 	private String createAccount(String email, String displayName, String password) throws Exception {
-		String body = mockMvc.perform(post("/accounts")
+		mockMvc.perform(post("/accounts")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"email\": \"%s\", \"display_name\": \"%s\", \"password\": \"%s\"}"
 								.formatted(email, displayName, password)))
-				.andExpect(status().isCreated())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(body, "$.id");
+				.andExpect(status().isCreated());
+		return jdbcTemplate.queryForObject("select id from accounts where email = ?", UUID.class, email).toString();
 	}
 
 	private Integer countTokens() {

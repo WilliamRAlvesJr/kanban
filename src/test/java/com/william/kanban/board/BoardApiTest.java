@@ -1,9 +1,11 @@
 package com.william.kanban.board;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,8 +30,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -52,11 +56,16 @@ class BoardApiTest {
 		String token = tokenOf("ana@exemplo.com");
 		String projectId = createProject(token);
 
-		postBoard(token, projectId, """
+		String location = postBoard(token, projectId, """
 				{"name": "Sprint 12", "description": "Trabalho da sprint"}
 				""")
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.id").isNotEmpty())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.id").value(idOf(location)))
 				.andExpect(jsonPath("$.project_id").value(projectId))
 				.andExpect(jsonPath("$.name").value("Sprint 12"))
 				.andExpect(jsonPath("$.description").value("Trabalho da sprint"))
@@ -69,10 +78,15 @@ class BoardApiTest {
 	void createsBoardWithoutDescription() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
 
-		postBoard(token, createProject(token), """
+		String location = postBoard(token, createProject(token), """
 				{"name": "Sprint 12"}
 				""")
 				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(jsonPath("$.name").value("Sprint 12"))
 				.andExpect(jsonPath("$.description").doesNotExist());
 	}
@@ -109,10 +123,15 @@ class BoardApiTest {
 	void createdBoardHasUpdatedAt() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
 
-		postBoard(token, createProject(token), """
+		String location = postBoard(token, createProject(token), """
 				{"name": "Sprint 12"}
 				""")
 				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(jsonPath("$.updated_at").isNotEmpty());
 	}
 
@@ -204,6 +223,61 @@ class BoardApiTest {
 	}
 
 	@Test
+	void linksActiveBoard() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String projectId = createProject(token);
+		String id = createBoard(token, projectId, """
+				{"name": "Sprint 12"}
+				""");
+
+		mockMvc.perform(get("/boards/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links", aMapWithSize(8)))
+				.andExpect(jsonPath("$._links.self.href").value("/boards/" + id))
+				.andExpect(jsonPath("$._links.edit.href").value("/boards/" + id))
+				.andExpect(jsonPath("$._links.archive.href").value("/boards/" + id + "/archive"))
+				.andExpect(jsonPath("$._links.move.href").value("/boards/" + id + "/move"))
+				.andExpect(jsonPath("$._links.project.href").value("/projects/" + projectId))
+				.andExpect(jsonPath("$._links.lanes.href").value("/boards/" + id + "/lanes"))
+				.andExpect(jsonPath("$._links['create-lane'].href").value("/boards/" + id + "/lanes"))
+				.andExpect(jsonPath("$._links['reorder-lanes'].href").value("/boards/" + id + "/lanes/order"));
+	}
+
+	@Test
+	void linksArchivedBoard() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String projectId = createProject(token);
+		String id = createBoard(token, projectId, """
+				{"name": "Sprint 12"}
+				""");
+		archive(id);
+
+		mockMvc.perform(get("/boards/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links", aMapWithSize(8)))
+				.andExpect(jsonPath("$._links.self.href").value("/boards/" + id))
+				.andExpect(jsonPath("$._links.edit.href").value("/boards/" + id))
+				.andExpect(jsonPath("$._links.restore.href").value("/boards/" + id + "/restore"))
+				.andExpect(jsonPath("$._links.move.href").value("/boards/" + id + "/move"))
+				.andExpect(jsonPath("$._links.project.href").value("/projects/" + projectId))
+				.andExpect(jsonPath("$._links.lanes.href").value("/boards/" + id + "/lanes"))
+				.andExpect(jsonPath("$._links['create-lane'].href").value("/boards/" + id + "/lanes"))
+				.andExpect(jsonPath("$._links['reorder-lanes'].href").value("/boards/" + id + "/lanes/order"));
+	}
+
+	@Test
+	void linksMovedBoardToNewProject() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createBoard(token, createProject(token), """
+				{"name": "Sprint 12"}
+				""");
+		String operacoes = createProject(token);
+		jdbcTemplate.update("update boards set project_id = ? where id = ?",
+				UUID.fromString(operacoes), UUID.fromString(id));
+
+		mockMvc.perform(get("/boards/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links.project.href").value("/projects/" + operacoes));
+	}
+
+	@Test
 	void hidesBoardOfAnotherOwner() throws Exception {
 		String id = createBoard(tokenOf("bruno@exemplo.com"), """
 				{"name": "Sprint 12"}
@@ -248,7 +322,7 @@ class BoardApiTest {
 
 		getBoards(token, projectId)
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(containsInAnyOrder(active, archived)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(containsInAnyOrder(active, archived)));
 	}
 
 	@Test
@@ -265,7 +339,7 @@ class BoardApiTest {
 
 		getBoards(token, projectId, "false")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(active)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(contains(active)));
 	}
 
 	@Test
@@ -282,7 +356,7 @@ class BoardApiTest {
 
 		getBoards(token, projectId, "true")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(archived)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(contains(archived)));
 	}
 
 	@Test
@@ -301,7 +375,7 @@ class BoardApiTest {
 
 		getBoards(token, projectId)
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(third, second, first)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(contains(third, second, first)));
 	}
 
 	@Test
@@ -324,7 +398,28 @@ class BoardApiTest {
 
 		getBoards(token, firstProjectId)
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(firstBoard)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(contains(firstBoard)));
+	}
+
+	@Test
+	void embedsEmptyBoardList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+
+		getBoards(token, createProject(token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.boards", hasSize(0)));
+	}
+
+	@Test
+	void linksBoardList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String projectId = createProject(token);
+
+		getBoards(token, projectId)
+				.andExpect(jsonPath("$._links", aMapWithSize(3)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + projectId + "/boards"))
+				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + projectId + "/boards"))
+				.andExpect(jsonPath("$._links.project.href").value("/projects/" + projectId));
 	}
 
 	@Test
@@ -365,12 +460,12 @@ class BoardApiTest {
 		archive(id);
 		OffsetDateTime archivedAt = archivedAtOf(id);
 
-		moveBoard(token, id, projectBody(operacoes))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.project_id").value(operacoes));
+		moveBoard(token, id, projectBody(operacoes)).andExpect(status().isOk());
 
-		getBoards(token, operacoes).andExpect(jsonPath("$[*].id").value(contains(id)));
-		getBoards(token, produto).andExpect(jsonPath("$[*].id").value(not(hasItem(id))));
+		getBoard(token, id).andExpect(jsonPath("$.project_id").value(operacoes));
+
+		getBoards(token, operacoes).andExpect(jsonPath("$._embedded.boards[*].id").value(contains(id)));
+		getBoards(token, produto).andExpect(jsonPath("$._embedded.boards[*].id").value(not(hasItem(id))));
 		assertThat(jdbcTemplate.queryForList(
 				"select name from lanes where board_id = ? order by position", String.class, UUID.fromString(id)))
 				.containsExactly("A fazer", "Feito");
@@ -388,9 +483,9 @@ class BoardApiTest {
 		String archivedProjectId = createProject(token);
 		archiveProject(archivedProjectId);
 
-		moveBoard(token, id, projectBody(archivedProjectId))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.project_id").value(archivedProjectId));
+		moveBoard(token, id, projectBody(archivedProjectId)).andExpect(status().isOk());
+
+		getBoard(token, id).andExpect(jsonPath("$.project_id").value(archivedProjectId));
 	}
 
 	@Test
@@ -402,10 +497,9 @@ class BoardApiTest {
 				""");
 		OffsetDateTime updatedAt = updatedAtOf(id);
 
-		moveBoard(token, id, projectBody(projectId))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.project_id").value(projectId));
+		moveBoard(token, id, projectBody(projectId)).andExpect(status().isOk());
 
+		getBoard(token, id).andExpect(jsonPath("$.project_id").value(projectId));
 		assertThat(updatedAtOf(id)).isEqualTo(updatedAt);
 	}
 
@@ -513,11 +607,11 @@ class BoardApiTest {
 		putBoard(token, id, """
 				{"name": "Sprint 13", "description": "Outro texto"}
 				""")
-				.andExpect(status().isOk())
+				.andExpect(status().isOk());
+
+		getBoard(token, id)
 				.andExpect(jsonPath("$.name").value("Sprint 13"))
 				.andExpect(jsonPath("$.description").value("Outro texto"));
-
-		assertThat(nameOf(id)).isEqualTo("Sprint 13");
 	}
 
 	@Test
@@ -530,8 +624,9 @@ class BoardApiTest {
 		putBoard(token, id, """
 				{"name": "Sprint 12"}
 				""")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.description").doesNotExist());
+				.andExpect(status().isOk());
+
+		getBoard(token, id).andExpect(jsonPath("$.description").doesNotExist());
 	}
 
 	@Test
@@ -546,9 +641,9 @@ class BoardApiTest {
 		putBoard(token, id, """
 				{"name": "Sprint 13"}
 				""")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.name").value("Sprint 13"));
+				.andExpect(status().isOk());
 
+		getBoard(token, id).andExpect(jsonPath("$.name").value("Sprint 13"));
 		assertThat(archivedAtOf(id)).isEqualTo(archivedAt);
 	}
 
@@ -631,12 +726,12 @@ class BoardApiTest {
 				{"name": "Sprint 12"}
 				""");
 
-		postAction(token, id, "archive")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.archived_at").isNotEmpty());
+		postAction(token, id, "archive").andExpect(status().isOk());
+
+		getBoard(token, id).andExpect(jsonPath("$.archived_at").isNotEmpty());
 
 		getBoards(token, projectIdOf(id).toString(), "false")
-				.andExpect(jsonPath("$[*].id").value(not(hasItem(id))));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(not(hasItem(id))));
 	}
 
 	@Test
@@ -647,13 +742,60 @@ class BoardApiTest {
 				""");
 		archive(id);
 
-		postAction(token, id, "restore")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.archived_at").doesNotExist());
+		postAction(token, id, "restore").andExpect(status().isOk());
+
+		getBoard(token, id).andExpect(jsonPath("$.archived_at").doesNotExist());
 
 		getBoards(token, projectIdOf(id).toString(), "false")
-				.andExpect(jsonPath("$[*].id").value(hasItem(id)));
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(hasItem(id)));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"PUT", "ARCHIVE", "RESTORE", "MOVE"})
+	void respondsToBoardWriteWithSelfOnly(String request) throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String projectId = createProject(token);
+		String id = createBoard(token, projectId, """
+				{"name": "Sprint 12"}
+				""");
+
+		mockMvc.perform(writeOf(request, id, projectId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links.self.href").value("/boards/" + id));
+	}
+
+	@Test
+	void respondsToBoardCreationWithSelfOnly() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+
+		String response = postBoard(token, createProject(token), """
+				{"name": "Sprint 13"}
+				""")
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		UUID created = jdbcTemplate.queryForObject("select id from boards", UUID.class);
+
+		assertThat(JsonPath.<String>read(response, "$._links.self.href")).isEqualTo("/boards/" + created);
+	}
+
+	@Test
+	void pointsLocationOfBoardCreationToSelf() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+
+		MockHttpServletResponse response = postBoard(token, createProject(token), """
+				{"name": "Sprint 13"}
+				""")
+				.andReturn()
+				.getResponse();
+
+		assertThat(response.getHeader(HttpHeaders.LOCATION))
+				.isEqualTo(JsonPath.<String>read(response.getContentAsString(), "$._links.self.href"));
 	}
 
 	@Test
@@ -680,11 +822,9 @@ class BoardApiTest {
 				""");
 		OffsetDateTime updatedAt = updatedAtOf(id);
 
-		postAction(token, id, "restore")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.archived_at").doesNotExist());
+		postAction(token, id, "restore").andExpect(status().isOk());
 
+		getBoard(token, id).andExpect(jsonPath("$.archived_at").doesNotExist());
 		assertThat(updatedAtOf(id)).isEqualTo(updatedAt);
 	}
 
@@ -799,7 +939,7 @@ class BoardApiTest {
 				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.404").exists())
 				.andExpect(jsonPath("$.paths['/boards'].get").doesNotExist())
 				.andExpect(jsonPath("$.paths['/boards'].post").doesNotExist())
-				.andExpect(jsonPath("$.components.schemas.BoardResponse.properties.project_id").exists())
+				.andExpect(jsonPath("$.components.schemas.EntityModelBoardResponse.properties.project_id").exists())
 				.andExpect(jsonPath("$.components.schemas.MoveBoardRequest.properties.project_id").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}'].get.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}'].get.responses.401").exists())
@@ -814,7 +954,7 @@ class BoardApiTest {
 				.andExpect(jsonPath("$.paths['/boards/{id}/restore'].post.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/restore'].post.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/restore'].post.responses.404").exists())
-				.andExpect(jsonPath("$.components.schemas.BoardResponse.properties.archived_at").exists())
+				.andExpect(jsonPath("$.components.schemas.EntityModelBoardResponse.properties.archived_at").exists())
 				.andExpect(jsonPath("$.components.schemas.ProblemDetail.properties.detail").exists())
 				.andExpect(jsonPath("$.components.schemas.UpdateBoardRequest.properties.name").exists());
 	}
@@ -876,16 +1016,39 @@ class BoardApiTest {
 	}
 
 	private String createBoard(String token, String projectId, String body) throws Exception {
-		String response = postBoard(token, projectId, body)
+		return idOf(postBoard(token, projectId, body)
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION));
+	}
+
+	private ResultActions getBoard(String token, String id) throws Exception {
+		return mockMvc.perform(get("/boards/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+	}
+
+	private static MockHttpServletRequestBuilder writeOf(String request, String id, String projectId) {
+		return switch (request) {
+			case "PUT" -> put("/boards/" + id)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{"name": "Sprint 13"}
+							""");
+			case "ARCHIVE" -> post("/boards/" + id + "/archive");
+			case "RESTORE" -> post("/boards/" + id + "/restore");
+			case "MOVE" -> post("/boards/" + id + "/move")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(projectBody(projectId));
+			default -> throw new IllegalArgumentException(request);
+		};
+	}
+
+	private static String idOf(String location) {
+		return location.substring(location.lastIndexOf('/') + 1);
 	}
 
 	private String createProject(String token) throws Exception {
-		String response = mockMvc.perform(post("/projects")
+		String location = mockMvc.perform(post("/projects")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -894,21 +1057,18 @@ class BoardApiTest {
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION);
+		return idOf(location);
 	}
 
 	private String createAccount(String email) throws Exception {
-		String body = mockMvc.perform(post("/accounts")
+		mockMvc.perform(post("/accounts")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"email": "%s", "display_name": "Ana", "password": "segredo"}
 								""".formatted(email)))
-				.andExpect(status().isCreated())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(body, "$.id");
+				.andExpect(status().isCreated());
+		return jdbcTemplate.queryForObject("select id from accounts where email = ?", UUID.class, email).toString();
 	}
 
 	private String tokenOf(String email) throws Exception {

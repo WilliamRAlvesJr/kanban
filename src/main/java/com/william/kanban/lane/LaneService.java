@@ -65,7 +65,7 @@ class LaneService {
 	}
 
 	@Transactional
-	List<Lane> reorder(UUID boardId, UUID ownerId, List<UUID> laneIds) {
+	void reorder(UUID boardId, UUID ownerId, List<UUID> laneIds) {
 		boardService.lockOwned(boardId, ownerId);
 		if (!Set.copyOf(laneIds).equals(activeIdsOf(boardId))) {
 			throw new LaneOrderMismatchException();
@@ -74,7 +74,11 @@ class LaneService {
 		for (int position = 0; position < laneIds.size(); position++) {
 			repository.assignPosition(laneIds.get(position), position);
 		}
-		return repository.findByBoardIdAndArchivedAtIsNullOrderByPositionAsc(boardId);
+	}
+
+	Lane findById(UUID boardId, UUID laneId, UUID ownerId) {
+		boardService.requireOwned(boardId, ownerId);
+		return findInBoard(boardId, laneId);
 	}
 
 	List<Lane> list(UUID boardId, UUID ownerId, Boolean archived) {

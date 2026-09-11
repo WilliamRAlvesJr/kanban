@@ -22,8 +22,8 @@ public class AccountService {
 		this.absentAccountHash = encoder.encode(UUID.randomUUID().toString());
 	}
 
-	Account create(String email, String displayName, String password) {
-		return repository.save(
+	void create(String email, String displayName, String password) {
+		repository.save(
 				new Account(email.toLowerCase(Locale.ROOT), displayName, encoder.encode(password)));
 	}
 

@@ -2,7 +2,9 @@ package com.william.kanban.lane;
 
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Named.named;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,6 +39,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -62,9 +65,14 @@ class LaneApiTest {
 		String token = tokenOf("ana@exemplo.com");
 		String boardId = createBoard(token);
 
-		postLane(token, boardId, "A fazer")
+		String location = postLane(token, boardId, "A fazer")
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.id").isNotEmpty())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.id").value(idOf(location)))
 				.andExpect(jsonPath("$.name").value("A fazer"))
 				.andExpect(jsonPath("$.position").value(0))
 				.andExpect(jsonPath("$.created_at").isNotEmpty())
@@ -80,8 +88,13 @@ class LaneApiTest {
 		createLane(token, boardId, "Fazendo");
 		archive(createLane(token, boardId, "Descartadas"));
 
-		postLane(token, boardId, "Feito")
+		String location = postLane(token, boardId, "Feito")
 				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(jsonPath("$.position").value(2));
 	}
 
@@ -158,7 +171,7 @@ class LaneApiTest {
 
 		getLanes(token, boardId)
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("A fazer", "Feito", "Descartadas", "Antigas")));
+				.andExpect(jsonPath("$._embedded.lanes[*].name").value(contains("A fazer", "Feito", "Descartadas", "Antigas")));
 	}
 
 	@Test
@@ -171,7 +184,7 @@ class LaneApiTest {
 
 		getLanes(token, boardId, "false")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("A fazer", "Feito")));
+				.andExpect(jsonPath("$._embedded.lanes[*].name").value(contains("A fazer", "Feito")));
 	}
 
 	@Test
@@ -184,7 +197,7 @@ class LaneApiTest {
 
 		getLanes(token, boardId, "true")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("Descartadas", "Antigas")));
+				.andExpect(jsonPath("$._embedded.lanes[*].name").value(contains("Descartadas", "Antigas")));
 	}
 
 	@Test
@@ -205,12 +218,93 @@ class LaneApiTest {
 
 		getLanes(token, firstBoardId)
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("A fazer")));
+				.andExpect(jsonPath("$._embedded.lanes[*].name").value(contains("A fazer")));
+	}
+
+	@Test
+	void embedsEmptyLaneList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+
+		getLanes(token, createBoard(token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.lanes", hasSize(0)));
+	}
+
+	@Test
+	void linksLaneList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+
+		getLanes(token, boardId)
+				.andExpect(jsonPath("$._links", aMapWithSize(4)))
+				.andExpect(jsonPath("$._links.self.href").value(lanesOf(boardId)))
+				.andExpect(jsonPath("$._links['create-lane'].href").value(lanesOf(boardId)))
+				.andExpect(jsonPath("$._links['reorder-lanes'].href").value(orderOf(boardId)))
+				.andExpect(jsonPath("$._links.board.href").value("/boards/" + boardId));
 	}
 
 	@Test
 	void returnsNotFoundForUnknownBoard() throws Exception {
 		getLanes(tokenOf("ana@exemplo.com"), UUID.randomUUID().toString()).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void returnsActiveLane() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		createLane(token, boardId, "A fazer");
+		String feitoId = createLane(token, boardId, "Feito");
+
+		getLane(token, boardId, feitoId)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(feitoId))
+				.andExpect(jsonPath("$.name").value("Feito"))
+				.andExpect(jsonPath("$.position").value(1))
+				.andExpect(jsonPath("$.created_at").isNotEmpty())
+				.andExpect(jsonPath("$.updated_at").isNotEmpty())
+				.andExpect(jsonPath("$.archived_at").value(nullValue()));
+	}
+
+	@Test
+	void returnsArchivedLane() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		String descartadasId = createLane(token, boardId, "Descartadas");
+		archive(descartadasId);
+
+		getLane(token, boardId, descartadasId)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.position").value(nullValue()))
+				.andExpect(jsonPath("$.archived_at").isNotEmpty());
+	}
+
+	@Test
+	void linksActiveLane() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		String laneId = createLane(token, boardId, "A fazer");
+
+		getLane(token, boardId, laneId)
+				.andExpect(jsonPath("$._links", aMapWithSize(4)))
+				.andExpect(jsonPath("$._links.self.href").value(laneOf(boardId, laneId)))
+				.andExpect(jsonPath("$._links.edit.href").value(laneOf(boardId, laneId)))
+				.andExpect(jsonPath("$._links.archive.href").value(laneOf(boardId, laneId) + "/archive"))
+				.andExpect(jsonPath("$._links.board.href").value("/boards/" + boardId));
+	}
+
+	@Test
+	void linksArchivedLane() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		String laneId = createLane(token, boardId, "Descartadas");
+		archive(laneId);
+
+		getLane(token, boardId, laneId)
+				.andExpect(jsonPath("$._links", aMapWithSize(4)))
+				.andExpect(jsonPath("$._links.self.href").value(laneOf(boardId, laneId)))
+				.andExpect(jsonPath("$._links.edit.href").value(laneOf(boardId, laneId)))
+				.andExpect(jsonPath("$._links.restore.href").value(laneOf(boardId, laneId) + "/restore"))
+				.andExpect(jsonPath("$._links.board.href").value("/boards/" + boardId));
 	}
 
 	@Test
@@ -220,12 +314,11 @@ class LaneApiTest {
 		String aFazerId = createLane(token, boardId, "A fazer");
 		createLane(token, boardId, "Feito");
 
-		putLane(token, boardId, aFazerId, "Backlog")
-				.andExpect(status().isOk())
+		putLane(token, boardId, aFazerId, "Backlog").andExpect(status().isOk());
+
+		getLane(token, boardId, aFazerId)
 				.andExpect(jsonPath("$.name").value("Backlog"))
 				.andExpect(jsonPath("$.position").value(0));
-
-		assertThat(nameOf(aFazerId)).isEqualTo("Backlog");
 	}
 
 	@Test
@@ -236,11 +329,11 @@ class LaneApiTest {
 		archive(laneId);
 		OffsetDateTime archivedAt = archivedAtOf(laneId);
 
-		putLane(token, boardId, laneId, "Canceladas")
-				.andExpect(status().isOk())
+		putLane(token, boardId, laneId, "Canceladas").andExpect(status().isOk());
+
+		getLane(token, boardId, laneId)
 				.andExpect(jsonPath("$.name").value("Canceladas"))
 				.andExpect(jsonPath("$.position").value(nullValue()));
-
 		assertThat(archivedAtOf(laneId)).isEqualTo(archivedAt);
 	}
 
@@ -292,11 +385,11 @@ class LaneApiTest {
 		String fazendoId = createLane(token, boardId, "Fazendo");
 		String feitoId = createLane(token, boardId, "Feito");
 
-		postAction(token, boardId, fazendoId, "archive")
-				.andExpect(status().isOk())
+		postAction(token, boardId, fazendoId, "archive").andExpect(status().isOk());
+
+		getLane(token, boardId, fazendoId)
 				.andExpect(jsonPath("$.archived_at").isNotEmpty())
 				.andExpect(jsonPath("$.position").value(nullValue()));
-
 		assertThat(positionOf(aFazerId)).isZero();
 		assertThat(positionOf(feitoId)).isEqualTo(1);
 	}
@@ -310,11 +403,11 @@ class LaneApiTest {
 		String fazendoId = createLane(token, boardId, "Fazendo");
 		archive(fazendoId);
 
-		postAction(token, boardId, fazendoId, "restore")
-				.andExpect(status().isOk())
+		postAction(token, boardId, fazendoId, "restore").andExpect(status().isOk());
+
+		getLane(token, boardId, fazendoId)
 				.andExpect(jsonPath("$.archived_at").value(nullValue()))
 				.andExpect(jsonPath("$.position").value(2));
-
 		assertThat(positionOf(aFazerId)).isZero();
 		assertThat(positionOf(feitoId)).isEqualTo(1);
 	}
@@ -328,10 +421,9 @@ class LaneApiTest {
 		archive(fazendoId);
 		OffsetDateTime archivedAt = archivedAtOf(fazendoId);
 
-		postAction(token, boardId, fazendoId, "archive")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.position").value(nullValue()));
+		postAction(token, boardId, fazendoId, "archive").andExpect(status().isOk());
 
+		assertThat(positionOf(fazendoId)).isNull();
 		assertThat(archivedAtOf(fazendoId)).isEqualTo(archivedAt);
 		assertThat(positionOf(aFazerId)).isZero();
 	}
@@ -343,11 +435,10 @@ class LaneApiTest {
 		String aFazerId = createLane(token, boardId, "A fazer");
 		String feitoId = createLane(token, boardId, "Feito");
 
-		postAction(token, boardId, aFazerId, "restore")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.archived_at").value(nullValue()))
-				.andExpect(jsonPath("$.position").value(0));
+		postAction(token, boardId, aFazerId, "restore").andExpect(status().isOk());
 
+		assertThat(archivedAtOf(aFazerId)).isNull();
+		assertThat(positionOf(aFazerId)).isZero();
 		assertThat(positionOf(feitoId)).isEqualTo(1);
 	}
 
@@ -442,12 +533,11 @@ class LaneApiTest {
 		String fazendoId = createLane(token, boardId, "Fazendo");
 		String feitoId = createLane(token, boardId, "Feito");
 
-		putOrder(token, boardId, feitoId, aFazerId, fazendoId)
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("Feito", "A fazer", "Fazendo")))
-				.andExpect(jsonPath("$[*].position").value(contains(0, 1, 2)));
+		putOrder(token, boardId, feitoId, aFazerId, fazendoId).andExpect(status().isOk());
 
 		assertThat(positionOf(feitoId)).isZero();
+		assertThat(positionOf(aFazerId)).isEqualTo(1);
+		assertThat(positionOf(fazendoId)).isEqualTo(2);
 	}
 
 	@Test
@@ -459,10 +549,10 @@ class LaneApiTest {
 		String descartadasId = createLane(token, boardId, "Descartadas");
 		archive(descartadasId);
 
-		putOrder(token, boardId, feitoId, aFazerId)
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name").value(contains("Feito", "A fazer")));
+		putOrder(token, boardId, feitoId, aFazerId).andExpect(status().isOk());
 
+		assertThat(positionOf(feitoId)).isZero();
+		assertThat(positionOf(aFazerId)).isEqualTo(1);
 		assertThat(positionOf(descartadasId)).isNull();
 		assertThat(archivedAtOf(descartadasId)).isNotNull();
 	}
@@ -471,11 +561,83 @@ class LaneApiTest {
 	void acceptsEmptyOrderOnBoardWithoutActiveLanes() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
 		String boardId = createBoard(token);
-		archive(createLane(token, boardId, "Descartadas"));
+		String descartadasId = createLane(token, boardId, "Descartadas");
+		archive(descartadasId);
 
-		putOrder(token, boardId)
+		putOrder(token, boardId).andExpect(status().isOk());
+
+		assertThat(positionOf(descartadasId)).isNull();
+		assertThat(archivedAtOf(descartadasId)).isNotNull();
+	}
+
+	static Stream<Named<LaneItemRequest>> laneWrites() {
+		return Stream.of(
+				named("PUT /boards/{boardId}/lanes/{laneId}", (boardId, laneId) -> put(laneOf(boardId, laneId))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name": "Backlog"}
+								""")),
+				named("POST /boards/{boardId}/lanes/{laneId}/archive",
+						(boardId, laneId) -> post(laneOf(boardId, laneId) + "/archive")),
+				named("POST /boards/{boardId}/lanes/{laneId}/restore",
+						(boardId, laneId) -> post(laneOf(boardId, laneId) + "/restore")));
+	}
+
+	@ParameterizedTest
+	@MethodSource("laneWrites")
+	void respondsToLaneWriteWithSelfOnly(LaneItemRequest request) throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		String laneId = createLane(token, boardId, "A fazer");
+
+		mockMvc.perform(request.build(boardId, laneId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isEmpty());
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links.self.href").value(laneOf(boardId, laneId)));
+	}
+
+	@Test
+	void respondsToReorderWithSelfOfLaneList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+		String laneId = createLane(token, boardId, "A fazer");
+
+		putOrder(token, boardId, laneId)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links.self.href").value(lanesOf(boardId)));
+	}
+
+	@Test
+	void respondsToLaneCreationWithSelfOnly() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String boardId = createBoard(token);
+
+		String response = postLane(token, boardId, "Feito")
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		UUID created = jdbcTemplate.queryForObject("select id from lanes", UUID.class);
+
+		assertThat(JsonPath.<String>read(response, "$._links.self.href"))
+				.isEqualTo(laneOf(boardId, created.toString()));
+	}
+
+	@Test
+	void pointsLocationOfLaneCreationToSelf() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+
+		MockHttpServletResponse response = postLane(token, createBoard(token), "A fazer")
+				.andReturn()
+				.getResponse();
+
+		assertThat(response.getHeader(HttpHeaders.LOCATION))
+				.isEqualTo(JsonPath.<String>read(response.getContentAsString(), "$._links.self.href"));
 	}
 
 	@Test
@@ -582,6 +744,9 @@ class LaneApiTest {
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes'].get.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes'].get.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes'].get.responses.404").exists())
+				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].get.responses.200").exists())
+				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].get.responses.401").exists())
+				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].get.responses.404").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].put.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].put.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/{laneId}'].put.responses.401").exists())
@@ -596,7 +761,7 @@ class LaneApiTest {
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/order'].put.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/order'].put.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/boards/{boardId}/lanes/order'].put.responses.409").exists())
-				.andExpect(jsonPath("$.components.schemas.LaneResponse.properties.archived_at").exists())
+				.andExpect(jsonPath("$.components.schemas.EntityModelLaneResponse.properties.archived_at").exists())
 				.andExpect(jsonPath("$.components.schemas.ReorderLanesRequest.properties.lane_ids").exists())
 				.andExpect(jsonPath("$.components.schemas.ReorderLanesRequest.properties.laneIdsDistinct")
 						.doesNotExist());
@@ -604,6 +769,7 @@ class LaneApiTest {
 
 	static Stream<Named<LaneItemRequest>> requestsOnLaneOfAnotherBoard() {
 		return Stream.of(
+				named("GET /boards/{boardId}/lanes/{laneId}", (boardId, laneId) -> get(laneOf(boardId, laneId))),
 				named("PUT /boards/{boardId}/lanes/{laneId}", (boardId, laneId) -> put(laneOf(boardId, laneId))
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -647,6 +813,8 @@ class LaneApiTest {
 								{"name": "Fazendo"}
 								""")),
 				named("GET /boards/{boardId}/lanes", (boardId, aFazerId, feitoId) -> get(lanesOf(boardId))),
+				named("GET /boards/{boardId}/lanes/{laneId}",
+						(boardId, aFazerId, feitoId) -> get(laneOf(boardId, aFazerId))),
 				named("PUT /boards/{boardId}/lanes/{laneId}", (boardId, aFazerId, feitoId) -> put(laneOf(boardId, aFazerId))
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -762,6 +930,10 @@ class LaneApiTest {
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
 	}
 
+	private ResultActions getLane(String token, String boardId, String laneId) throws Exception {
+		return mockMvc.perform(get(laneOf(boardId, laneId)).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+	}
+
 	private ResultActions getLanes(String token, String boardId) throws Exception {
 		return mockMvc.perform(get(lanesOf(boardId)).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
 	}
@@ -781,12 +953,15 @@ class LaneApiTest {
 	}
 
 	private String createLane(String token, String boardId, String name) throws Exception {
-		String response = postLane(token, boardId, name)
+		return idOf(postLane(token, boardId, name)
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION));
+	}
+
+	private static String idOf(String location) {
+		return location.substring(location.lastIndexOf('/') + 1);
 	}
 
 	private String createBoard(String token) throws Exception {
@@ -799,8 +974,8 @@ class LaneApiTest {
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		String response = mockMvc.perform(post("/projects/" + JsonPath.read(project, "$.id") + "/boards")
+				.getHeader(HttpHeaders.LOCATION);
+		String board = mockMvc.perform(post(project + "/boards")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -809,8 +984,8 @@ class LaneApiTest {
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION);
+		return idOf(board);
 	}
 
 	private String tokenOf(String email) throws Exception {

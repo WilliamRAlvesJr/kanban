@@ -6,7 +6,7 @@ Troca email e senha por um token opaco que identifica a conta em cada requisiç�
 
 ### Requirement: Emissão do token
 
-O sistema SHALL expor `POST /auth/login`, que recebe `email` e `password` e responde `201` com `token`, `token_type` igual a `Bearer` e `expires_at`.
+O sistema SHALL expor `POST /auth/login`, que recebe `email` e `password` e responde `201` com `token`, `token_type` igual a `Bearer`, `expires_at` e `_links` com `me`, de `href` `/accounts/me`, e `logout`, de `href` `/auth/logout`. A resposta SHALL NOT trazer o header `Location`.
 
 O `token` SHALL ser gerado por fonte criptográfica e SHALL aparecer em claro apenas nessa resposta.
 
@@ -16,6 +16,8 @@ O `token` SHALL ser gerado por fonte criptográfica e SHALL aparecer em claro ap
 Given uma conta com o email "ana@exemplo.com" e a senha "segredo"
 When chega POST /auth/login com email "ana@exemplo.com" e password "segredo"
 Then a resposta é 201 com token, token_type "Bearer" e expires_at
+And _links traz somente me "/accounts/me" e logout "/auth/logout"
+And a resposta não traz o header Location
 ```
 
 #### Scenario: Email enviado com maiúsculas
@@ -166,7 +168,7 @@ Then nenhuma coluna guarda o valor em claro do token
 
 ### Requirement: Endpoints abertos
 
-O sistema SHALL atender `POST /accounts`, `POST /auth/login` e a documentação OpenAPI sem token. Todo outro endpoint SHALL exigir token.
+O sistema SHALL atender `GET /`, `POST /accounts`, `POST /auth/login` e a documentação OpenAPI sem token. Todo outro endpoint SHALL exigir token.
 
 #### Scenario: Cadastro sem token
 
@@ -179,6 +181,13 @@ Then a resposta é 201
 
 ```gherkin
 When chega GET /v3/api-docs sem o header Authorization
+Then a resposta é 200
+```
+
+#### Scenario: Entrada sem token
+
+```gherkin
+When chega GET / sem o header Authorization
 Then a resposta é 200
 ```
 

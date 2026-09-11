@@ -1,13 +1,16 @@
 package com.william.kanban.project;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,6 +32,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -37,6 +41,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class ProjectApiTest {
+
+	private static final String HAL_JSON = "application/hal+json";
 
 	@Autowired
 	MockMvc mockMvc;
@@ -51,14 +57,21 @@ class ProjectApiTest {
 
 	@Test
 	void createsProject() throws Exception {
-		mockMvc.perform(post("/projects")
-						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com"))
+		String token = tokenOf("ana@exemplo.com");
+
+		String location = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"name": "Produto", "description": "Time de produto"}
 								"""))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.id").isNotEmpty())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.id").value(idOf(location)))
 				.andExpect(jsonPath("$.name").value("Produto"))
 				.andExpect(jsonPath("$.description").value("Time de produto"))
 				.andExpect(jsonPath("$.created_at").isNotEmpty())
@@ -68,13 +81,20 @@ class ProjectApiTest {
 
 	@Test
 	void createsProjectWithoutDescription() throws Exception {
-		mockMvc.perform(post("/projects")
-						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com"))
+		String token = tokenOf("ana@exemplo.com");
+
+		String location = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"name": "Produto"}
 								"""))
 				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(jsonPath("$.name").value("Produto"))
 				.andExpect(jsonPath("$.description").doesNotExist());
 	}
@@ -96,13 +116,20 @@ class ProjectApiTest {
 
 	@Test
 	void createdProjectHasUpdatedAt() throws Exception {
-		mockMvc.perform(post("/projects")
-						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com"))
+		String token = tokenOf("ana@exemplo.com");
+
+		String location = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"name": "Produto"}
 								"""))
 				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(jsonPath("$.updated_at").isNotEmpty());
 	}
 
@@ -143,7 +170,7 @@ class ProjectApiTest {
 
 		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(containsInAnyOrder(active, archived)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(containsInAnyOrder(active, archived)));
 	}
 
 	@Test
@@ -160,7 +187,7 @@ class ProjectApiTest {
 		mockMvc.perform(get("/projects").param("archived", "false")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(active)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(active)));
 	}
 
 	@Test
@@ -177,7 +204,7 @@ class ProjectApiTest {
 		mockMvc.perform(get("/projects").param("archived", "true")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(archived)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(archived)));
 	}
 
 	@Test
@@ -195,7 +222,7 @@ class ProjectApiTest {
 
 		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(third, second, first)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(third, second, first)));
 	}
 
 	@Test
@@ -217,7 +244,60 @@ class ProjectApiTest {
 
 		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + anaToken))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].id").value(contains(anaProject)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(anaProject)));
+	}
+
+	@Test
+	void linksProjectList() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		createProject(token, """
+				{"name": "Produto"}
+				""");
+
+		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links", aMapWithSize(2)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects"))
+				.andExpect(jsonPath("$._links['create-project'].href").value("/projects"));
+	}
+
+	@Test
+	void embedsSameProjectAsSingleRead() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto", "description": "Time de produto"}
+				""");
+
+		String list = mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._embedded.projects", hasSize(1)))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		String single = mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(JsonPath.<Map<String, Object>>read(list, "$._embedded.projects[0]"))
+				.isEqualTo(JsonPath.<Map<String, Object>>read(single, "$"));
+	}
+
+	@Test
+	void embedsEmptyProjectList() throws Exception {
+		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.projects", hasSize(0)));
+	}
+
+	@Test
+	void linksProjectListToPathWithoutQuery() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		archive(createProject(token, """
+				{"name": "Produto"}
+				"""));
+
+		mockMvc.perform(get("/projects").param("archived", "true")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links.self.href").value("/projects"));
 	}
 
 	@Test
@@ -249,6 +329,64 @@ class ProjectApiTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(id))
 				.andExpect(jsonPath("$.archived_at").isNotEmpty());
+	}
+
+	@Test
+	void rendersProjectAsHal() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto"}
+				""");
+
+		mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, HAL_JSON))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id));
+	}
+
+	@Test
+	void rendersProjectAsHalWhenAccepted() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto"}
+				""");
+
+		mockMvc.perform(get("/projects/" + id).accept(HAL_JSON)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, HAL_JSON));
+	}
+
+	@Test
+	void linksActiveProject() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto"}
+				""");
+
+		mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links", aMapWithSize(5)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id))
+				.andExpect(jsonPath("$._links.edit.href").value("/projects/" + id))
+				.andExpect(jsonPath("$._links.archive.href").value("/projects/" + id + "/archive"))
+				.andExpect(jsonPath("$._links.boards.href").value("/projects/" + id + "/boards"))
+				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"));
+	}
+
+	@Test
+	void linksArchivedProject() throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto"}
+				""");
+		archive(id);
+
+		mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$._links", aMapWithSize(5)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id))
+				.andExpect(jsonPath("$._links.edit.href").value("/projects/" + id))
+				.andExpect(jsonPath("$._links.restore.href").value("/projects/" + id + "/restore"))
+				.andExpect(jsonPath("$._links.boards.href").value("/projects/" + id + "/boards"))
+				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"));
 	}
 
 	@ParameterizedTest
@@ -286,6 +424,15 @@ class ProjectApiTest {
 	}
 
 	@Test
+	void answersErrorAsProblemDetailWithoutLinks() throws Exception {
+		mockMvc.perform(get("/projects/" + UUID.randomUUID())
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com")))
+				.andExpect(status().isNotFound())
+				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+				.andExpect(jsonPath("$._links").doesNotExist());
+	}
+
+	@Test
 	void replacesProject() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
 		String id = createProject(token, """
@@ -295,11 +442,11 @@ class ProjectApiTest {
 		putProject(token, id, """
 				{"name": "Plataforma", "description": "Outro texto"}
 				""")
-				.andExpect(status().isOk())
+				.andExpect(status().isOk());
+
+		getProject(token, id)
 				.andExpect(jsonPath("$.name").value("Plataforma"))
 				.andExpect(jsonPath("$.description").value("Outro texto"));
-
-		assertThat(nameOf(id)).isEqualTo("Plataforma");
 	}
 
 	@Test
@@ -312,8 +459,9 @@ class ProjectApiTest {
 		putProject(token, id, """
 				{"name": "Produto"}
 				""")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.description").doesNotExist());
+				.andExpect(status().isOk());
+
+		getProject(token, id).andExpect(jsonPath("$.description").doesNotExist());
 	}
 
 	@Test
@@ -328,9 +476,9 @@ class ProjectApiTest {
 		putProject(token, id, """
 				{"name": "Plataforma"}
 				""")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.name").value("Plataforma"));
+				.andExpect(status().isOk());
 
+		getProject(token, id).andExpect(jsonPath("$.name").value("Plataforma"));
 		assertThat(archivedAtOf(id)).isEqualTo(archivedAt);
 	}
 
@@ -399,13 +547,13 @@ class ProjectApiTest {
 				{"name": "Produto"}
 				""");
 
-		postAction(token, id, "archive")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.archived_at").isNotEmpty());
+		postAction(token, id, "archive").andExpect(status().isOk());
+
+		getProject(token, id).andExpect(jsonPath("$.archived_at").isNotEmpty());
 
 		mockMvc.perform(get("/projects").param("archived", "false")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-				.andExpect(jsonPath("$[*].id").value(not(hasItem(id))));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(not(hasItem(id))));
 	}
 
 	@Test
@@ -416,14 +564,62 @@ class ProjectApiTest {
 				""");
 		archive(id);
 
-		postAction(token, id, "restore")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.archived_at").doesNotExist());
+		postAction(token, id, "restore").andExpect(status().isOk());
+
+		getProject(token, id).andExpect(jsonPath("$.archived_at").doesNotExist());
 
 		mockMvc.perform(get("/projects").param("archived", "false")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-				.andExpect(jsonPath("$[*].id").value(hasItem(id)));
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(hasItem(id)));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"PUT", "ARCHIVE", "RESTORE"})
+	void respondsToProjectWriteWithSelfOnly(String request) throws Exception {
+		String token = tokenOf("ana@exemplo.com");
+		String id = createProject(token, """
+				{"name": "Produto"}
+				""");
+
+		mockMvc.perform(requestOf(request, id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id));
+	}
+
+	@Test
+	void respondsToProjectCreationWithSelfOnly() throws Exception {
+		String response = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name": "Plataforma"}
+								"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		UUID created = jdbcTemplate.queryForObject("select id from projects", UUID.class);
+
+		assertThat(JsonPath.<String>read(response, "$._links.self.href")).isEqualTo("/projects/" + created);
+	}
+
+	@Test
+	void pointsLocationOfProjectCreationToSelf() throws Exception {
+		MockHttpServletResponse response = mockMvc.perform(post("/projects")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"name": "Plataforma"}
+								"""))
+				.andReturn()
+				.getResponse();
+
+		assertThat(response.getHeader(HttpHeaders.LOCATION))
+				.isEqualTo(JsonPath.<String>read(response.getContentAsString(), "$._links.self.href"));
 	}
 
 	@Test
@@ -450,11 +646,9 @@ class ProjectApiTest {
 				""");
 		OffsetDateTime updatedAt = updatedAtOf(id);
 
-		postAction(token, id, "restore")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.archived_at").doesNotExist());
+		postAction(token, id, "restore").andExpect(status().isOk());
 
+		getProject(token, id).andExpect(jsonPath("$.archived_at").doesNotExist());
 		assertThat(updatedAtOf(id)).isEqualTo(updatedAt);
 	}
 
@@ -561,12 +755,12 @@ class ProjectApiTest {
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.404").exists())
-				.andExpect(jsonPath("$.components.schemas.ProjectResponse.properties.archived_at").exists())
+				.andExpect(jsonPath("$.components.schemas.EntityModelProjectResponse.properties.archived_at").exists())
 				.andExpect(jsonPath("$.components.schemas.UpdateProjectRequest.properties.name").exists());
 	}
 
 	private String createBoard(String token, String projectId) throws Exception {
-		String response = mockMvc.perform(post("/projects/" + projectId + "/boards")
+		String location = mockMvc.perform(post("/projects/" + projectId + "/boards")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -575,8 +769,8 @@ class ProjectApiTest {
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION);
+		return idOf(location);
 	}
 
 	private Map<String, Object> boardTimestampsOf(String boardId) {
@@ -605,33 +799,38 @@ class ProjectApiTest {
 							{"name": "Outro"}
 							""");
 			case "ARCHIVE" -> post("/projects/" + id + "/archive");
+			case "RESTORE" -> post("/projects/" + id + "/restore");
 			default -> throw new IllegalArgumentException(request);
 		};
 	}
 
 	private String createProject(String token, String body) throws Exception {
-		String response = mockMvc.perform(post("/projects")
+		return idOf(mockMvc.perform(post("/projects")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(response, "$.id");
+				.getHeader(HttpHeaders.LOCATION));
+	}
+
+	private ResultActions getProject(String token, String id) throws Exception {
+		return mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+	}
+
+	private static String idOf(String location) {
+		return location.substring(location.lastIndexOf('/') + 1);
 	}
 
 	private String createAccount(String email) throws Exception {
-		String body = mockMvc.perform(post("/accounts")
+		mockMvc.perform(post("/accounts")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"email": "%s", "display_name": "Ana", "password": "segredo"}
 								""".formatted(email)))
-				.andExpect(status().isCreated())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(body, "$.id");
+				.andExpect(status().isCreated());
+		return jdbcTemplate.queryForObject("select id from accounts where email = ?", UUID.class, email).toString();
 	}
 
 	private String tokenOf(String email) throws Exception {

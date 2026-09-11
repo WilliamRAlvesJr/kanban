@@ -1,6 +1,8 @@
 package com.william.kanban.auth;
 
 import jakarta.validation.Valid;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +23,7 @@ class AuthController {
 
 	@PostMapping("/login")
 	@ResponseStatus(HttpStatus.CREATED)
-	LoginResponse login(
+	EntityModel<LoginResponse> login(
 
 			@Valid
 			@RequestBody
@@ -29,7 +31,8 @@ class AuthController {
 
 	) {
 		IssuedToken token = service.login(request.email(), request.password());
-		return new LoginResponse(token.value(), "Bearer", token.expiresAt());
+		return EntityModel.of(new LoginResponse(token.value(), "Bearer", token.expiresAt()),
+				Link.of("/accounts/me", "me"), Link.of("/auth/logout", "logout"));
 	}
 
 	@PostMapping("/logout")

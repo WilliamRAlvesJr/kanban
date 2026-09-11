@@ -1,8 +1,13 @@
-## Purpose
+## MODIFIED Requirements
 
-Quadros de uma conta do kanban, com criação, consulta, edição e arquivamento reversível. Cada quadro tem um dono, e nenhuma conta enxerga quadro de outra.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
+- Criação de quadro no projeto: descrição; cenários "Quadro criado" e "Quadro sem descrição".
+- Listagem dos quadros do projeto: descrição; cenário "Links da listagem".
+- Substituição do quadro: descrição; cenários "Quadro substituído", "Descrição omitida apagada" e "Quadro arquivado editado".
+- Arquivamento reversível: descrição; cenários "Quadro arquivado", "Quadro restaurado" e "Restauração de quadro ativo".
+- Movimentação de quadro: descrição; cenários "Quadro movido", "Destino arquivado" e "Destino igual ao projeto atual".
+- Carimbo de updated_at: cenário "Criação preenche updated_at".
 
 ### Requirement: Criação de quadro no projeto
 
@@ -43,42 +48,6 @@ Given um projeto arquivado da conta do token
 When chega POST /projects/{projectId}/boards com name "Sprint 12"
 Then a resposta é 201
 And o projeto continua com archived_at preenchido
-```
-
-### Requirement: Validação da entrada de criação
-
-O sistema SHALL recusar com `400` a criação com `name` ausente, vazio ou acima de 100 caracteres, e com `description` acima de 500 caracteres. Nenhum quadro SHALL ser criado nesses casos.
-
-#### Scenario: Name ausente
-
-```gherkin
-When chega POST /projects/{projectId}/boards sem o campo name
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Name vazio
-
-```gherkin
-When chega POST /projects/{projectId}/boards com name ""
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Name acima do limite
-
-```gherkin
-When chega POST /projects/{projectId}/boards com name de 101 caracteres
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Description acima do limite
-
-```gherkin
-When chega POST /projects/{projectId}/boards com description de 501 caracteres
-Then a resposta é 400
-And nenhum quadro é criado
 ```
 
 ### Requirement: Listagem dos quadros do projeto
@@ -150,152 +119,6 @@ And self e create-board têm href "/projects/{projectId}/boards"
 And project tem href "/projects/{projectId}"
 ```
 
-### Requirement: Consulta de um quadro
-
-O sistema SHALL expor `GET /boards/{id}`, que devolve `200` com o quadro da conta do token, arquivado ou não.
-
-#### Scenario: Quadro ativo
-
-```gherkin
-Given um quadro ativo da conta do token
-When chega GET /boards/{id} desse quadro
-Then a resposta é 200 com id, project_id, name, description, created_at, updated_at e archived_at
-```
-
-#### Scenario: Quadro arquivado
-
-```gherkin
-Given um quadro arquivado da conta do token
-When chega GET /boards/{id} desse quadro
-Then a resposta é 200
-And archived_at traz o instante do arquivamento
-```
-
-### Requirement: Links do quadro
-
-Todo quadro em `GET /boards/{id}` e em `_embedded.boards` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só no quadro com `archived_at` null, e `restore` só no quadro arquivado.
-
-| relação | href |
-|---|---|
-| `self` | `/boards/{id}` |
-| `edit` | `/boards/{id}` |
-| `archive` | `/boards/{id}/archive` |
-| `restore` | `/boards/{id}/restore` |
-| `move` | `/boards/{id}/move` |
-| `project` | `/projects/{project_id}` |
-| `lanes` | `/boards/{id}/lanes` |
-| `create-lane` | `/boards/{id}/lanes` |
-| `reorder-lanes` | `/boards/{id}/lanes/order` |
-
-#### Scenario: Links do quadro ativo
-
-```gherkin
-Given um quadro ativo da conta do token
-When chega GET /boards/{id} desse quadro
-Then _links traz somente self, edit, archive, move, project, lanes, create-lane e reorder-lanes
-```
-
-#### Scenario: Links do quadro arquivado
-
-```gherkin
-Given um quadro arquivado da conta do token
-When chega GET /boards/{id} desse quadro
-Then _links traz somente self, edit, restore, move, project, lanes, create-lane e reorder-lanes
-```
-
-#### Scenario: Link do projeto depois da movimentação
-
-```gherkin
-Given um quadro movido do projeto "Produto" para o projeto "Operações"
-When chega GET /boards/{id} desse quadro
-Then _links.project.href é "/projects/{id de Operações}"
-```
-
-### Requirement: Isolamento entre donos
-
-Um quadro SHALL pertencer à conta dona do projeto dele. Requisição a `GET /boards/{id}`, `PUT /boards/{id}`, `POST /boards/{id}/archive`, `POST /boards/{id}/restore` ou `POST /boards/{id}/move` de quadro que não pertence à conta do token SHALL receber `404`, com o mesmo `ProblemDetail` de quadro inexistente. A resposta SHALL NOT revelar que o quadro existe.
-
-Requisição a `POST /projects/{projectId}/boards` ou `GET /projects/{projectId}/boards` com projeto que não pertence à conta do token SHALL receber `404`, com o mesmo `ProblemDetail` de projeto inexistente, e nenhum quadro SHALL ser criado.
-
-#### Scenario: Consulta de quadro alheio
-
-```gherkin
-Given um quadro da segunda conta
-When chega GET /boards/{id} desse quadro com o token da primeira conta
-Then a resposta é 404
-And o corpo é igual ao da resposta de quadro inexistente
-```
-
-#### Scenario: Edição de quadro alheio
-
-```gherkin
-Given um quadro da segunda conta com name "Sprint 12"
-When chega PUT /boards/{id} desse quadro com o token da primeira conta
-Then a resposta é 404
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Arquivamento de quadro alheio
-
-```gherkin
-Given um quadro ativo da segunda conta
-When chega POST /boards/{id}/archive desse quadro com o token da primeira conta
-Then a resposta é 404
-And archived_at continua null
-```
-
-#### Scenario: Restauração de quadro alheio
-
-```gherkin
-Given um quadro arquivado da segunda conta
-When chega POST /boards/{id}/restore desse quadro com o token da primeira conta
-Then a resposta é 404
-And archived_at continua preenchido
-```
-
-#### Scenario: Movimentação de quadro alheio
-
-```gherkin
-Given um quadro da segunda conta e um projeto da primeira conta
-When chega POST /boards/{id}/move desse quadro com project_id do projeto da primeira conta e o token da primeira conta
-Then a resposta é 404
-And o corpo é igual ao da resposta de quadro inexistente
-And o quadro continua no projeto da segunda conta
-```
-
-#### Scenario: Quadro inexistente
-
-```gherkin
-When chega GET /boards/{id} com um id que nunca existiu
-Then a resposta é 404
-```
-
-#### Scenario: Criação em projeto alheio
-
-```gherkin
-Given um projeto da segunda conta
-When chega POST /projects/{projectId}/boards desse projeto com o token da primeira conta
-Then a resposta é 404
-And o corpo é igual ao da resposta de projeto inexistente
-And nenhum quadro é criado
-```
-
-#### Scenario: Listagem de projeto alheio
-
-```gherkin
-Given um projeto da segunda conta com um quadro
-When chega GET /projects/{projectId}/boards desse projeto com o token da primeira conta
-Then a resposta é 404
-And o corpo é igual ao da resposta de projeto inexistente
-```
-
-#### Scenario: Projeto inexistente
-
-```gherkin
-When chega POST /projects/{projectId}/boards com um projectId que nunca existiu
-Then a resposta é 404
-```
-
 ### Requirement: Substituição do quadro
 
 O sistema SHALL expor `PUT /boards/{id}`, que substitui `name` e `description` do quadro e responde `200`. `description` ausente ou `null` SHALL gravar `null`, e `archived_at` SHALL NOT mudar.
@@ -326,46 +149,6 @@ When chega PUT /boards/{id} com name "Sprint 13"
 Then a resposta é 200
 And GET /boards/{id} traz name "Sprint 13"
 And archived_at continua igual ao guardado
-```
-
-### Requirement: Validação da entrada de substituição
-
-`PUT /boards/{id}` com `name` ausente, vazio ou acima de 100 caracteres, ou com `description` acima de 500 caracteres, SHALL receber `400`. O quadro SHALL permanecer inalterado.
-
-#### Scenario: Name ausente na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} sem o campo name
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Name vazio na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} com name ""
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Name acima do limite na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} com name de 101 caracteres
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Description acima do limite na substituição
-
-```gherkin
-Given um quadro com description "Trabalho da sprint"
-When chega PUT /boards/{id} com name "Sprint 12" e description de 501 caracteres
-Then a resposta é 400
-And o quadro continua com description "Trabalho da sprint"
 ```
 
 ### Requirement: Arquivamento reversível
@@ -516,54 +299,44 @@ When chega POST /boards/{id}/move com project_id do segundo projeto
 Then updated_at fica maior que o guardado
 ```
 
-### Requirement: Quadros apagados com a conta
+## ADDED Requirements
 
-Apagar a linha da conta em `accounts` SHALL apagar os quadros dela, arquivados ou não. Nenhum quadro SHALL permanecer sem dono.
+### Requirement: Links do quadro
 
-#### Scenario: Conta apagada
+Todo quadro em `GET /boards/{id}` e em `_embedded.boards` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só no quadro com `archived_at` null, e `restore` só no quadro arquivado.
+
+| relação | href |
+|---|---|
+| `self` | `/boards/{id}` |
+| `edit` | `/boards/{id}` |
+| `archive` | `/boards/{id}/archive` |
+| `restore` | `/boards/{id}/restore` |
+| `move` | `/boards/{id}/move` |
+| `project` | `/projects/{project_id}` |
+| `lanes` | `/boards/{id}/lanes` |
+| `create-lane` | `/boards/{id}/lanes` |
+| `reorder-lanes` | `/boards/{id}/lanes/order` |
+
+#### Scenario: Links do quadro ativo
 
 ```gherkin
-Given uma conta com um quadro ativo e um quadro arquivado
-When a linha dessa conta é apagada de accounts
-Then nenhum quadro dela permanece em boards
+Given um quadro ativo da conta do token
+When chega GET /boards/{id} desse quadro
+Then _links traz somente self, edit, archive, move, project, lanes, create-lane e reorder-lanes
 ```
 
-#### Scenario: Quadro de outra conta preservado
+#### Scenario: Links do quadro arquivado
 
 ```gherkin
-Given duas contas, cada uma com um quadro
-When a linha da primeira conta é apagada de accounts
-Then o quadro da segunda conta continua em boards
+Given um quadro arquivado da conta do token
+When chega GET /boards/{id} desse quadro
+Then _links traz somente self, edit, restore, move, project, lanes, create-lane e reorder-lanes
 ```
 
-### Requirement: Quadros apagados com o projeto
-
-Apagar a linha do projeto em `projects` SHALL apagar os quadros dele, arquivados ou não. Nenhum quadro SHALL permanecer sem projeto.
-
-#### Scenario: Projeto apagado
+#### Scenario: Link do projeto depois da movimentação
 
 ```gherkin
-Given um projeto com um quadro ativo e um quadro arquivado
-When a linha desse projeto é apagada de projects
-Then nenhum quadro dele permanece em boards
-```
-
-#### Scenario: Quadro de outro projeto preservado
-
-```gherkin
-Given dois projetos, cada um com um quadro
-When a linha do primeiro projeto é apagada de projects
-Then o quadro do segundo projeto continua em boards
-```
-
-### Requirement: Endpoints documentados no OpenAPI
-
-Os endpoints de quadro SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
-
-#### Scenario: OpenAPI lista os endpoints
-
-```gherkin
-When o documento OpenAPI é solicitado
-Then ele descreve POST /projects/{projectId}/boards, GET /projects/{projectId}/boards, GET /boards/{id}, PUT /boards/{id}, POST /boards/{id}/archive, POST /boards/{id}/restore e POST /boards/{id}/move
-And lista os códigos de resposta de cada endpoint
+Given um quadro movido do projeto "Produto" para o projeto "Operações"
+When chega GET /boards/{id} desse quadro
+Then _links.project.href é "/projects/{id de Operações}"
 ```

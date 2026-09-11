@@ -3,7 +3,9 @@ package com.william.kanban.project;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.springframework.hateoas.server.core.Relation;
 
+@Relation(collectionRelation = "projects")
 record ProjectResponse(
 
 		UUID id,

@@ -1,9 +1,13 @@
 package com.william.kanban.lane;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,13 +25,16 @@ class LaneController {
 
 	private final LaneService service;
 
-	LaneController(LaneService service) {
+	private final LaneModelAssembler assembler;
+
+	LaneController(LaneService service, LaneModelAssembler assembler) {
 		this.service = service;
+		this.assembler = assembler;
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	LaneResponse create(
+	ResponseEntity<RepresentationModel<?>> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -40,11 +47,28 @@ class LaneController {
 			CreateLaneRequest request
 
 	) {
-		return toResponse(service.create(boardId, accountId, request.name()));
+		RepresentationModel<?> model = assembler.selfOf(service.create(boardId, accountId, request.name()));
+		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
+	}
+
+	@GetMapping("/{laneId}")
+	EntityModel<LaneResponse> findById(
+
+			@AuthenticationPrincipal
+			UUID accountId,
+
+			@PathVariable
+			UUID boardId,
+
+			@PathVariable
+			UUID laneId
+
+	) {
+		return assembler.toModel(service.findById(boardId, laneId, accountId));
 	}
 
 	@PutMapping("/{laneId}")
-	LaneResponse rename(
+	RepresentationModel<?> rename(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -60,11 +84,11 @@ class LaneController {
 			UpdateLaneRequest request
 
 	) {
-		return toResponse(service.rename(boardId, laneId, accountId, request.name()));
+		return assembler.selfOf(service.rename(boardId, laneId, accountId, request.name()));
 	}
 
 	@PutMapping("/order")
-	List<LaneResponse> reorder(
+	RepresentationModel<?> reorder(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -77,11 +101,12 @@ class LaneController {
 			ReorderLanesRequest request
 
 	) {
-		return service.reorder(boardId, accountId, request.laneIds()).stream().map(this::toResponse).toList();
+		service.reorder(boardId, accountId, request.laneIds());
+		return assembler.selfOfCollection(boardId);
 	}
 
 	@PostMapping("/{laneId}/archive")
-	LaneResponse archive(
+	RepresentationModel<?> archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -93,11 +118,11 @@ class LaneController {
 			UUID laneId
 
 	) {
-		return toResponse(service.archive(boardId, laneId, accountId));
+		return assembler.selfOf(service.archive(boardId, laneId, accountId));
 	}
 
 	@PostMapping("/{laneId}/restore")
-	LaneResponse restore(
+	RepresentationModel<?> restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -109,11 +134,11 @@ class LaneController {
 			UUID laneId
 
 	) {
-		return toResponse(service.restore(boardId, laneId, accountId));
+		return assembler.selfOf(service.restore(boardId, laneId, accountId));
 	}
 
 	@GetMapping
-	List<LaneResponse> list(
+	CollectionModel<?> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -125,12 +150,7 @@ class LaneController {
 			Boolean archived
 
 	) {
-		return service.list(boardId, accountId, archived).stream().map(this::toResponse).toList();
-	}
-
-	private LaneResponse toResponse(Lane lane) {
-		return new LaneResponse(lane.getId(), lane.getName(), lane.getPosition(),
-				lane.getCreatedAt(), lane.getUpdatedAt(), lane.getArchivedAt());
+		return assembler.toCollection(service.list(boardId, accountId, archived), boardId);
 	}
 
 }

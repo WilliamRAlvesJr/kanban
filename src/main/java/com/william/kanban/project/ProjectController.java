@@ -1,9 +1,13 @@
 package com.william.kanban.project;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,13 +25,16 @@ class ProjectController {
 
 	private final ProjectService service;
 
-	ProjectController(ProjectService service) {
+	private final ProjectModelAssembler assembler;
+
+	ProjectController(ProjectService service, ProjectModelAssembler assembler) {
 		this.service = service;
+		this.assembler = assembler;
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	ProjectResponse create(
+	ResponseEntity<RepresentationModel<?>> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -37,11 +44,12 @@ class ProjectController {
 			CreateProjectRequest request
 
 	) {
-		return toResponse(service.create(accountId, request.name(), request.description()));
+		RepresentationModel<?> model = assembler.selfOf(service.create(accountId, request.name(), request.description()));
+		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
 	}
 
 	@GetMapping
-	List<ProjectResponse> list(
+	CollectionModel<?> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -50,11 +58,11 @@ class ProjectController {
 			Boolean archived
 
 	) {
-		return service.list(accountId, archived).stream().map(this::toResponse).toList();
+		return assembler.toCollection(service.list(accountId, archived));
 	}
 
 	@GetMapping("/{projectId}")
-	ProjectResponse findById(
+	EntityModel<ProjectResponse> findById(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -63,11 +71,11 @@ class ProjectController {
 			UUID projectId
 
 	) {
-		return toResponse(service.findById(projectId, accountId));
+		return assembler.toModel(service.findById(projectId, accountId));
 	}
 
 	@PutMapping("/{projectId}")
-	ProjectResponse update(
+	RepresentationModel<?> update(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -80,11 +88,11 @@ class ProjectController {
 			UpdateProjectRequest request
 
 	) {
-		return toResponse(service.update(projectId, accountId, request.name(), request.description()));
+		return assembler.selfOf(service.update(projectId, accountId, request.name(), request.description()));
 	}
 
 	@PostMapping("/{projectId}/archive")
-	ProjectResponse archive(
+	RepresentationModel<?> archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -93,11 +101,11 @@ class ProjectController {
 			UUID projectId
 
 	) {
-		return toResponse(service.archive(projectId, accountId));
+		return assembler.selfOf(service.archive(projectId, accountId));
 	}
 
 	@PostMapping("/{projectId}/restore")
-	ProjectResponse restore(
+	RepresentationModel<?> restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -106,12 +114,7 @@ class ProjectController {
 			UUID projectId
 
 	) {
-		return toResponse(service.restore(projectId, accountId));
-	}
-
-	private ProjectResponse toResponse(Project project) {
-		return new ProjectResponse(project.getId(), project.getName(), project.getDescription(),
-				project.getCreatedAt(), project.getUpdatedAt(), project.getArchivedAt());
+		return assembler.selfOf(service.restore(projectId, accountId));
 	}
 
 }

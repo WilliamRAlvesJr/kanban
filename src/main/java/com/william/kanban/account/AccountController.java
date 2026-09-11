@@ -1,8 +1,14 @@
 package com.william.kanban.account;
 
 import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/accounts")
 class AccountController {
 
+	private static final String ME = "/accounts/me";
+
 	private final AccountService service;
 
 	AccountController(AccountService service) {
@@ -23,29 +31,28 @@ class AccountController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	AccountResponse create(
+	ResponseEntity<RepresentationModel<?>> create(
 
 			@Valid
 			@RequestBody
 			CreateAccountRequest request
 
 	) {
-		return toResponse(
-				service.create(request.email(), request.displayName(), request.password()));
+		service.create(request.email(), request.displayName(), request.password());
+		return ResponseEntity.created(URI.create(ME))
+				.body(new RepresentationModel<>(List.of(Link.of(ME), Link.of("/auth/login", "login"))));
 	}
 
 	@GetMapping("/me")
-	AccountResponse me(
+	EntityModel<AccountResponse> me(
 
 			@AuthenticationPrincipal
 			UUID accountId
 
 	) {
-		return toResponse(service.findById(accountId));
-	}
-
-	private AccountResponse toResponse(Account account) {
-		return new AccountResponse(account.getId(), account.getEmail(), account.getDisplayName());
+		Account account = service.findById(accountId);
+		return EntityModel.of(new AccountResponse(account.getId(), account.getEmail(), account.getDisplayName()),
+				Link.of(ME), Link.of("/projects", "projects"));
 	}
 
 }

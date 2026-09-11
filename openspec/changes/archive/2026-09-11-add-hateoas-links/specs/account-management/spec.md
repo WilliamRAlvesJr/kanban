@@ -1,8 +1,11 @@
-## Purpose
+## MODIFIED Requirements
 
-Cadastro e consulta de contas de usuário do kanban, com email único e normalizado e senha armazenada apenas em hash. É a identidade a que board, coluna e card se prendem.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
+- Cadastro de conta: descrição; cenário "Conta criada".
+- Normalização do email: cenário "Email enviado com maiúsculas".
+- Senha armazenada em hash: cenário "Senha não trafega de volta".
+- Consulta da conta autenticada: descrição; cenário "Conta do token".
 
 ### Requirement: Cadastro de conta
 
@@ -47,28 +50,6 @@ When chega POST /accounts com email "Ana@Exemplo.com"
 Then a coluna email guarda "ana@exemplo.com"
 ```
 
-### Requirement: Unicidade do email
-
-O sistema SHALL aceitar no máximo uma conta por email. A unicidade SHALL ser garantida por índice único no banco.
-
-#### Scenario: Email já cadastrado
-
-```gherkin
-Given uma conta com o email "ana@exemplo.com"
-When chega POST /accounts com email "ana@exemplo.com"
-Then a resposta é 409
-And nenhuma conta é criada
-```
-
-#### Scenario: Email já cadastrado com outra caixa
-
-```gherkin
-Given uma conta com o email "ana@exemplo.com"
-When chega POST /accounts com email "ANA@exemplo.com"
-Then a resposta é 409
-And nenhuma conta é criada
-```
-
 ### Requirement: Senha armazenada em hash
 
 O sistema SHALL gravar a senha apenas como hash BCrypt. A senha em texto puro SHALL NOT ser persistida, e o `password_hash` SHALL NOT aparecer em nenhuma resposta da API.
@@ -109,16 +90,4 @@ And _links traz somente self "/accounts/me" e projects "/projects"
 Given duas contas cadastradas, cada uma com o seu token
 When chega GET /accounts/me com o token da segunda conta
 Then a resposta traz o id da segunda conta
-```
-
-### Requirement: Endpoints documentados no OpenAPI
-
-Os endpoints de conta SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
-
-#### Scenario: OpenAPI lista os endpoints
-
-```gherkin
-When o documento OpenAPI é solicitado
-Then ele descreve POST /accounts e GET /accounts/me
-And lista os códigos de resposta de cada endpoint
 ```

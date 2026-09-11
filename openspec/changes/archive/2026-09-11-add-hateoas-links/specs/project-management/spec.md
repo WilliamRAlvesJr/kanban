@@ -1,8 +1,12 @@
-## Purpose
+## MODIFIED Requirements
 
-Projetos de uma conta do kanban, que agrupam os quadros dela, com criação, consulta, edição e arquivamento reversível. Cada projeto tem um dono, e nenhuma conta enxerga projeto de outra.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
+- Criação de projeto: descrição; cenários "Projeto criado" e "Projeto sem descrição".
+- Listagem dos projetos da conta: descrição; cenário "Links da listagem".
+- Substituição do projeto: descrição; cenários "Projeto substituído", "Descrição omitida apagada" e "Projeto arquivado editado".
+- Arquivamento reversível: descrição; cenários "Projeto arquivado", "Projeto restaurado" e "Restauração de projeto ativo".
+- Carimbo de updated_at: cenário "Criação preenche updated_at".
 
 ### Requirement: Criação de projeto
 
@@ -34,25 +38,6 @@ And GET no header Location traz description null
 Given duas contas cadastradas, cada uma com o seu token
 When chega POST /projects com o token da segunda conta
 Then a coluna owner_id guarda o id da segunda conta
-```
-
-### Requirement: Validação da entrada de criação
-
-O sistema SHALL recusar com `400` a criação com `name` ausente, vazio ou acima de 100 caracteres, e com `description` acima de 500 caracteres. Nenhum projeto SHALL ser criado nesses casos.
-
-#### Scenario: Entrada inválida na criação
-
-```gherkin
-When chega POST /projects com <entrada>
-Then a resposta é 400
-And nenhum projeto é criado
-
-Examples:
-  | entrada                                          |
-  | name ausente                                     |
-  | name ""                                          |
-  | name de 101 caracteres                           |
-  | name "Produto" e description de 501 caracteres   |
 ```
 
 ### Requirement: Listagem dos projetos da conta
@@ -121,92 +106,6 @@ When chega GET /projects com o token dessa conta
 Then _links traz somente self e create-project, os dois com href "/projects"
 ```
 
-### Requirement: Consulta de um projeto
-
-O sistema SHALL expor `GET /projects/{projectId}`, que devolve `200` com o projeto da conta do token, arquivado ou não.
-
-#### Scenario: Projeto ativo
-
-```gherkin
-Given um projeto ativo da conta do token
-When chega GET /projects/{projectId} desse projeto
-Then a resposta é 200 com id, name, description, created_at, updated_at e archived_at
-```
-
-#### Scenario: Projeto arquivado
-
-```gherkin
-Given um projeto arquivado da conta do token
-When chega GET /projects/{projectId} desse projeto
-Then a resposta é 200
-And archived_at traz o instante do arquivamento
-```
-
-### Requirement: Links do projeto
-
-Todo projeto em `GET /projects/{projectId}` e em `_embedded.projects` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só no projeto com `archived_at` null, e `restore` só no projeto arquivado.
-
-| relação | href |
-|---|---|
-| `self` | `/projects/{id}` |
-| `edit` | `/projects/{id}` |
-| `archive` | `/projects/{id}/archive` |
-| `restore` | `/projects/{id}/restore` |
-| `boards` | `/projects/{id}/boards` |
-| `create-board` | `/projects/{id}/boards` |
-
-#### Scenario: Links do projeto ativo
-
-```gherkin
-Given um projeto ativo da conta do token
-When chega GET /projects/{projectId} desse projeto
-Then _links traz somente self, edit, archive, boards e create-board
-```
-
-#### Scenario: Links do projeto arquivado
-
-```gherkin
-Given um projeto arquivado da conta do token
-When chega GET /projects/{projectId} desse projeto
-Then _links traz somente self, edit, restore, boards e create-board
-```
-
-### Requirement: Isolamento entre donos
-
-Requisição a `GET /projects/{projectId}`, `PUT /projects/{projectId}`, `POST /projects/{projectId}/archive` ou `POST /projects/{projectId}/restore` de projeto que não pertence à conta do token SHALL receber `404`, com o mesmo `ProblemDetail` de projeto inexistente. A resposta SHALL NOT revelar que o projeto existe, e o projeto SHALL permanecer inalterado.
-
-#### Scenario: Endpoint de projeto ativo alheio
-
-```gherkin
-Given um projeto ativo da segunda conta com name "Produto"
-When chega <requisição> desse projeto com o token da primeira conta
-Then a resposta é 404
-And o corpo é igual ao da resposta de projeto inexistente
-And o projeto continua com name "Produto" e archived_at null
-
-Examples:
-  | requisição                                   |
-  | GET /projects/{projectId}                    |
-  | PUT /projects/{projectId} com name "Outro"   |
-  | POST /projects/{projectId}/archive           |
-```
-
-#### Scenario: Restauração de projeto alheio
-
-```gherkin
-Given um projeto arquivado da segunda conta
-When chega POST /projects/{projectId}/restore desse projeto com o token da primeira conta
-Then a resposta é 404
-And archived_at continua preenchido
-```
-
-#### Scenario: Projeto inexistente
-
-```gherkin
-When chega GET /projects/{projectId} com um projectId que nunca existiu
-Then a resposta é 404
-```
-
 ### Requirement: Substituição do projeto
 
 O sistema SHALL expor `PUT /projects/{projectId}`, que substitui `name` e `description` do projeto e responde `200`. `description` ausente ou `null` SHALL gravar `null`, e `archived_at` SHALL NOT mudar.
@@ -237,26 +136,6 @@ When chega PUT /projects/{projectId} com name "Plataforma"
 Then a resposta é 200
 And GET /projects/{projectId} traz name "Plataforma"
 And archived_at continua igual ao guardado
-```
-
-### Requirement: Validação da entrada de substituição
-
-`PUT /projects/{projectId}` com `name` ausente, vazio ou acima de 100 caracteres, ou com `description` acima de 500 caracteres, SHALL receber `400`. O projeto SHALL permanecer inalterado.
-
-#### Scenario: Entrada inválida na substituição
-
-```gherkin
-Given um projeto com name "Produto" e description "Time de produto"
-When chega PUT /projects/{projectId} com <entrada>
-Then a resposta é 400
-And o projeto continua com name "Produto" e description "Time de produto"
-
-Examples:
-  | entrada                                          |
-  | name ausente                                     |
-  | name ""                                          |
-  | name de 101 caracteres                           |
-  | name "Produto" e description de 501 caracteres   |
 ```
 
 ### Requirement: Arquivamento reversível
@@ -346,34 +225,33 @@ When chega POST /projects com name "Produto"
 Then GET no header Location traz updated_at preenchido
 ```
 
-### Requirement: Projetos apagados com a conta
+## ADDED Requirements
 
-Apagar a linha da conta em `accounts` SHALL apagar os projetos dela, arquivados ou não. Nenhum projeto SHALL permanecer sem dono.
+### Requirement: Links do projeto
 
-#### Scenario: Conta apagada
+Todo projeto em `GET /projects/{projectId}` e em `_embedded.projects` SHALL trazer em `_links` as relações abaixo. `archive` SHALL aparecer só no projeto com `archived_at` null, e `restore` só no projeto arquivado.
+
+| relação | href |
+|---|---|
+| `self` | `/projects/{id}` |
+| `edit` | `/projects/{id}` |
+| `archive` | `/projects/{id}/archive` |
+| `restore` | `/projects/{id}/restore` |
+| `boards` | `/projects/{id}/boards` |
+| `create-board` | `/projects/{id}/boards` |
+
+#### Scenario: Links do projeto ativo
 
 ```gherkin
-Given uma conta com um projeto ativo e um projeto arquivado
-When a linha dessa conta é apagada de accounts
-Then nenhum projeto dela permanece em projects
+Given um projeto ativo da conta do token
+When chega GET /projects/{projectId} desse projeto
+Then _links traz somente self, edit, archive, boards e create-board
 ```
 
-#### Scenario: Projeto de outra conta preservado
+#### Scenario: Links do projeto arquivado
 
 ```gherkin
-Given duas contas, cada uma com um projeto
-When a linha da primeira conta é apagada de accounts
-Then o projeto da segunda conta continua em projects
-```
-
-### Requirement: Endpoints documentados no OpenAPI
-
-Os endpoints de projeto SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem.
-
-#### Scenario: OpenAPI lista os endpoints
-
-```gherkin
-When o documento OpenAPI é solicitado
-Then ele descreve POST /projects, GET /projects, GET /projects/{projectId}, PUT /projects/{projectId}, POST /projects/{projectId}/archive e POST /projects/{projectId}/restore
-And lista os códigos de resposta de cada endpoint
+Given um projeto arquivado da conta do token
+When chega GET /projects/{projectId} desse projeto
+Then _links traz somente self, edit, restore, boards e create-board
 ```
