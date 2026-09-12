@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,7 +19,8 @@ class RootController {
 	 */
 	@GetMapping("/")
 	RepresentationModel<?> root() {
-		if (SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof UUID) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication != null && authentication.getPrincipal() instanceof UUID) {
 			return new RepresentationModel<>(List.of(
 					Link.of("/"),
 					Link.of("/accounts/me", "me"),

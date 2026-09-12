@@ -15,13 +15,12 @@ class LaneModelAssembler {
 	private static final EmbeddedWrappers WRAPPERS = new EmbeddedWrappers(false);
 
 	EntityModel<LaneResponse> toModel(Lane lane) {
-		String board = "/boards/" + lane.getBoardId();
-		String self = board + "/lanes/" + lane.getId();
+		String self = hrefOf(lane);
 		EntityModel<LaneResponse> model = EntityModel.of(toResponse(lane), Link.of(self), Link.of(self, "edit"));
 		model.add(lane.getArchivedAt() == null
 				? Link.of(self + "/archive", "archive")
 				: Link.of(self + "/restore", "restore"));
-		return model.add(Link.of(board, "board"));
+		return model.add(Link.of(boardHrefOf(lane.getBoardId()), "board"));
 	}
 
 	/** CollectionModel sem item omite _embedded; o wrapper vazio mantém o array. */
@@ -29,20 +28,32 @@ class LaneModelAssembler {
 		CollectionModel<?> collection = lanes.isEmpty()
 				? CollectionModel.of(List.of(WRAPPERS.emptyCollectionOf(LaneResponse.class)))
 				: CollectionModel.of(lanes.stream().map(this::toModel).toList());
-		String board = "/boards/" + boardId;
+		String lanesHref = lanesHrefOf(boardId);
 		return collection.add(
-				Link.of(board + "/lanes"),
-				Link.of(board + "/lanes", "create-lane"),
-				Link.of(board + "/lanes/order", "reorder-lanes"),
-				Link.of(board, "board"));
+				Link.of(lanesHref),
+				Link.of(lanesHref, "create-lane"),
+				Link.of(lanesHref + "/order", "reorder-lanes"),
+				Link.of(boardHrefOf(boardId), "board"));
 	}
 
 	RepresentationModel<?> selfOf(Lane lane) {
-		return new RepresentationModel<>(Link.of("/boards/" + lane.getBoardId() + "/lanes/" + lane.getId()));
+		return new RepresentationModel<>(Link.of(hrefOf(lane)));
 	}
 
 	RepresentationModel<?> selfOfCollection(UUID boardId) {
-		return new RepresentationModel<>(Link.of("/boards/" + boardId + "/lanes"));
+		return new RepresentationModel<>(Link.of(lanesHrefOf(boardId)));
+	}
+
+	private static String hrefOf(Lane lane) {
+		return lanesHrefOf(lane.getBoardId()) + "/" + lane.getId();
+	}
+
+	private static String lanesHrefOf(UUID boardId) {
+		return boardHrefOf(boardId) + "/lanes";
+	}
+
+	private static String boardHrefOf(UUID boardId) {
+		return "/boards/" + boardId;
 	}
 
 	private static LaneResponse toResponse(Lane lane) {
