@@ -1,85 +1,12 @@
-## Purpose
+## MODIFIED Requirements
 
-Quadros de uma conta do kanban, com criação, consulta, edição e arquivamento reversível. Cada quadro tem um dono, e nenhuma conta enxerga quadro de outra.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
-
-### Requirement: Criação de quadro no projeto
-
-O sistema SHALL expor `POST /projects/{projectId}/boards`, que recebe `name` e `description` e cria no projeto da URL um quadro com identificador `uuid` gerado pelo sistema. Projeto arquivado SHALL aceitar a criação.
-
-A resposta de sucesso SHALL ser `201`.
-
-#### Scenario: Quadro criado
-
-```gherkin
-Given um projeto da conta do token
-When chega POST /projects/{projectId}/boards com name "Sprint 12" e description "Trabalho da sprint"
-Then a resposta é 201
-And GET no header Location traz id, project_id do projeto da URL, name "Sprint 12", description "Trabalho da sprint", created_at, updated_at e archived_at null
-```
-
-#### Scenario: Quadro sem descrição
-
-```gherkin
-Given um projeto da conta do token
-When chega POST /projects/{projectId}/boards com name "Sprint 12" e sem o campo description
-Then a resposta é 201
-And GET no header Location traz description null
-```
-
-#### Scenario: Quadro no projeto da URL
-
-```gherkin
-Given uma conta com dois projetos
-When chega POST /projects/{projectId}/boards com o id do segundo projeto
-Then a coluna project_id guarda o id do segundo projeto
-```
-
-#### Scenario: Quadro em projeto arquivado
-
-```gherkin
-Given um projeto arquivado da conta do token
-When chega POST /projects/{projectId}/boards com name "Sprint 12"
-Then a resposta é 201
-And o projeto continua com archived_at preenchido
-```
-
-### Requirement: Validação da entrada de criação
-
-O sistema SHALL recusar com `400` a criação com `name` ausente, vazio ou acima de 100 caracteres, e com `description` acima de 500 caracteres. Nenhum quadro SHALL ser criado nesses casos.
-
-#### Scenario: Name ausente
-
-```gherkin
-When chega POST /projects/{projectId}/boards sem o campo name
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Name vazio
-
-```gherkin
-When chega POST /projects/{projectId}/boards com name ""
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Name acima do limite
-
-```gherkin
-When chega POST /projects/{projectId}/boards com name de 101 caracteres
-Then a resposta é 400
-And nenhum quadro é criado
-```
-
-#### Scenario: Description acima do limite
-
-```gherkin
-When chega POST /projects/{projectId}/boards com description de 501 caracteres
-Then a resposta é 400
-And nenhum quadro é criado
-```
+- Listagem dos quadros do projeto: descrição; cenário novo "Links da listagem para membro".
+- Links do quadro: descrição; cenário novo "Links do quadro para membro".
+- Isolamento entre donos: descrição; cenário novo "Quadro de projeto em que a conta é membro".
+- Movimentação de quadro: descrição; cenário novo "Destino em que a conta é membro".
+- Endpoints documentados no OpenAPI: descrição; cenário "OpenAPI lista os endpoints".
 
 ### Requirement: Listagem dos quadros do projeto
 
@@ -156,27 +83,6 @@ And project tem href "/projects/{projectId}"
 Given um projeto com um membro que tem somente a permissão "view_boards"
 When chega GET /projects/{projectId}/boards desse projeto com o token do membro
 Then _links traz somente self
-```
-
-### Requirement: Consulta de um quadro
-
-O sistema SHALL expor `GET /boards/{id}`, que devolve `200` com o quadro da conta do token, arquivado ou não.
-
-#### Scenario: Quadro ativo
-
-```gherkin
-Given um quadro ativo da conta do token
-When chega GET /boards/{id} desse quadro
-Then a resposta é 200 com id, project_id, name, description, created_at, updated_at e archived_at
-```
-
-#### Scenario: Quadro arquivado
-
-```gherkin
-Given um quadro arquivado da conta do token
-When chega GET /boards/{id} desse quadro
-Then a resposta é 200
-And archived_at traz o instante do arquivamento
 ```
 
 ### Requirement: Links do quadro
@@ -327,120 +233,6 @@ When chega POST /projects/{projectId}/boards com um projectId que nunca existiu
 Then a resposta é 404
 ```
 
-### Requirement: Substituição do quadro
-
-O sistema SHALL expor `PUT /boards/{id}`, que substitui `name` e `description` do quadro e responde `200`. `description` ausente ou `null` SHALL gravar `null`, e `archived_at` SHALL NOT mudar.
-
-#### Scenario: Quadro substituído
-
-```gherkin
-Given um quadro com name "Sprint 12" e description "Trabalho da sprint"
-When chega PUT /boards/{id} com name "Sprint 13" e description "Outro texto"
-Then a resposta é 200
-And GET /boards/{id} traz name "Sprint 13" e description "Outro texto"
-```
-
-#### Scenario: Descrição omitida apagada
-
-```gherkin
-Given um quadro com description "Trabalho da sprint"
-When chega PUT /boards/{id} com name "Sprint 12" e sem o campo description
-Then a resposta é 200
-And GET /boards/{id} traz description null
-```
-
-#### Scenario: Quadro arquivado editado
-
-```gherkin
-Given um quadro arquivado, com o archived_at guardado
-When chega PUT /boards/{id} com name "Sprint 13"
-Then a resposta é 200
-And GET /boards/{id} traz name "Sprint 13"
-And archived_at continua igual ao guardado
-```
-
-### Requirement: Validação da entrada de substituição
-
-`PUT /boards/{id}` com `name` ausente, vazio ou acima de 100 caracteres, ou com `description` acima de 500 caracteres, SHALL receber `400`. O quadro SHALL permanecer inalterado.
-
-#### Scenario: Name ausente na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} sem o campo name
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Name vazio na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} com name ""
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Name acima do limite na substituição
-
-```gherkin
-Given um quadro com name "Sprint 12"
-When chega PUT /boards/{id} com name de 101 caracteres
-Then a resposta é 400
-And o quadro continua com name "Sprint 12"
-```
-
-#### Scenario: Description acima do limite na substituição
-
-```gherkin
-Given um quadro com description "Trabalho da sprint"
-When chega PUT /boards/{id} com name "Sprint 12" e description de 501 caracteres
-Then a resposta é 400
-And o quadro continua com description "Trabalho da sprint"
-```
-
-### Requirement: Arquivamento reversível
-
-O sistema SHALL expor `POST /boards/{id}/archive`, que carimba `archived_at` com o instante do arquivamento, e `POST /boards/{id}/restore`, que grava `null` em `archived_at`. Os dois SHALL responder `200`. Arquivar quadro arquivado ou restaurar quadro ativo SHALL responder `200` sem alterar `archived_at`.
-
-#### Scenario: Quadro arquivado
-
-```gherkin
-Given um quadro ativo
-When chega POST /boards/{id}/archive
-Then a resposta é 200
-And GET /boards/{id} traz archived_at preenchido
-And o quadro deixa de aparecer na listagem com archived "false"
-```
-
-#### Scenario: Quadro restaurado
-
-```gherkin
-Given um quadro arquivado
-When chega POST /boards/{id}/restore
-Then a resposta é 200
-And GET /boards/{id} traz archived_at null
-And o quadro volta a aparecer na listagem com archived "false"
-```
-
-#### Scenario: Arquivamento repetido
-
-```gherkin
-Given um quadro arquivado, com o archived_at guardado
-When chega POST /boards/{id}/archive
-Then a resposta é 200
-And archived_at continua igual ao guardado
-```
-
-#### Scenario: Restauração de quadro ativo
-
-```gherkin
-Given um quadro ativo
-When chega POST /boards/{id}/restore
-Then a resposta é 200
-And GET /boards/{id} traz archived_at null
-```
-
 ### Requirement: Movimentação de quadro
 
 O sistema SHALL expor `POST /boards/{id}/move`, que recebe `project_id`, grava o quadro no projeto de destino e responde `200`. As lanes SHALL acompanhar o quadro, e `name`, `description` e `archived_at` SHALL NOT mudar. Projeto de destino arquivado SHALL aceitar o quadro, e destino igual ao projeto atual SHALL responder `200` sem alterar o quadro.
@@ -521,82 +313,6 @@ Then a resposta é 404
 And o quadro continua em "Produto"
 ```
 
-### Requirement: Carimbo de updated_at
-
-O sistema SHALL atualizar `updated_at` a cada alteração de valor do quadro. Requisição que não altera nenhum valor SHALL deixar `updated_at` intacto.
-
-#### Scenario: Alteração carimba updated_at
-
-```gherkin
-Given um quadro criado, com o updated_at guardado
-When chega PUT /boards/{id} com name "Sprint 13"
-Then updated_at fica maior que o guardado
-```
-
-#### Scenario: Edição sem mudança de valor
-
-```gherkin
-Given um quadro com name "Sprint 12" e description "Trabalho da sprint", com o updated_at guardado
-When chega PUT /boards/{id} com name "Sprint 12" e description "Trabalho da sprint"
-Then updated_at continua igual ao guardado
-```
-
-#### Scenario: Criação preenche updated_at
-
-```gherkin
-Given um projeto da conta do token
-When chega POST /projects/{projectId}/boards com name "Sprint 12"
-Then GET no header Location traz updated_at preenchido
-```
-
-#### Scenario: Movimentação carimba updated_at
-
-```gherkin
-Given um quadro no primeiro de dois projetos da conta, com o updated_at guardado
-When chega POST /boards/{id}/move com project_id do segundo projeto
-Then updated_at fica maior que o guardado
-```
-
-### Requirement: Quadros apagados com a conta
-
-Apagar a linha da conta em `accounts` SHALL apagar os quadros dela, arquivados ou não. Nenhum quadro SHALL permanecer sem dono.
-
-#### Scenario: Conta apagada
-
-```gherkin
-Given uma conta com um quadro ativo e um quadro arquivado
-When a linha dessa conta é apagada de accounts
-Then nenhum quadro dela permanece em boards
-```
-
-#### Scenario: Quadro de outra conta preservado
-
-```gherkin
-Given duas contas, cada uma com um quadro
-When a linha da primeira conta é apagada de accounts
-Then o quadro da segunda conta continua em boards
-```
-
-### Requirement: Quadros apagados com o projeto
-
-Apagar a linha do projeto em `projects` SHALL apagar os quadros dele, arquivados ou não. Nenhum quadro SHALL permanecer sem projeto.
-
-#### Scenario: Projeto apagado
-
-```gherkin
-Given um projeto com um quadro ativo e um quadro arquivado
-When a linha desse projeto é apagada de projects
-Then nenhum quadro dele permanece em boards
-```
-
-#### Scenario: Quadro de outro projeto preservado
-
-```gherkin
-Given dois projetos, cada um com um quadro
-When a linha do primeiro projeto é apagada de projects
-Then o quadro do segundo projeto continua em boards
-```
-
 ### Requirement: Endpoints documentados no OpenAPI
 
 Os endpoints de quadro SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produzem. `POST /projects/{projectId}/boards` e `GET /projects/{projectId}/boards` SHALL listar a resposta `403`.
@@ -609,6 +325,8 @@ Then ele descreve POST /projects/{projectId}/boards, GET /projects/{projectId}/b
 And lista os códigos de resposta de cada endpoint
 And POST /projects/{projectId}/boards e GET /projects/{projectId}/boards listam a resposta 403
 ```
+
+## ADDED Requirements
 
 ### Requirement: Acesso de membro aos quadros do projeto
 

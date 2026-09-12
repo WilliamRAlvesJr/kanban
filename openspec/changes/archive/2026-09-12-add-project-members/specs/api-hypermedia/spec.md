@@ -1,32 +1,9 @@
-## Purpose
+## MODIFIED Requirements
 
-Formato hipermídia das respostas da API do kanban: representação HAL, coleções em `_embedded`, respostas de escrita só com links e o ponto de entrada `GET /`, de onde o cliente navega sem conhecer as rotas de antemão.
+Alterados nesta change; o restante de cada bloco é repetição da spec publicada.
 
-## Requirements
-
-### Requirement: Representação HAL
-
-Toda resposta de sucesso com corpo SHALL sair em HAL. Requisição sem o header `Accept` ou com `Accept` `application/hal+json` SHALL receber `Content-Type` `application/hal+json`.
-
-`_links` SHALL ser um objeto em que cada relação aponta para um objeto com `href`. Todo `href` SHALL ser um caminho relativo à raiz da aplicação, iniciado por `/`, sem esquema e sem host.
-
-#### Scenario: Conteúdo em HAL
-
-```gherkin
-Given um projeto da conta do token
-When chega GET /projects/{projectId} desse projeto sem o header Accept
-Then o header Content-Type é "application/hal+json"
-And _links.self.href é "/projects/{projectId}"
-```
-
-#### Scenario: Accept HAL
-
-```gherkin
-Given um projeto da conta do token
-When chega GET /projects/{projectId} desse projeto com o header Accept "application/hal+json"
-Then a resposta é 200
-And o header Content-Type é "application/hal+json"
-```
+- Coleções em _embedded: descrição; cenário novo "Item da coleção de membros".
+- Escrita responde só com links: descrição; cenário "Self da escrita".
 
 ### Requirement: Coleções em _embedded
 
@@ -114,76 +91,4 @@ Examples:
   | POST /projects com name "Plataforma"                   |
   | POST /projects/{projectId}/boards com name "Sprint 13" |
   | POST /boards/{boardId}/lanes com name "A fazer"        |
-```
-
-### Requirement: Erro sem links
-
-Resposta de erro SHALL continuar em `ProblemDetail`, com `Content-Type` `application/problem+json` e sem `_links`.
-
-#### Scenario: Recurso inexistente
-
-```gherkin
-When chega GET /projects/{projectId} com um projectId que nunca existiu
-Then a resposta é 404 com o header Content-Type "application/problem+json"
-And o corpo não traz _links
-```
-
-### Requirement: Ponto de entrada da API
-
-O sistema SHALL expor `GET /`, que responde `200` com corpo só com `_links`.
-
-Requisição com token válido SHALL receber `self`, `me`, `projects`, `create-project` e `logout`. Requisição sem token, com token desconhecido, com token expirado ou com header `Authorization` em outro formato SHALL receber `self`, `login` e `create-account`, e SHALL NOT receber `401`.
-
-| relação | href |
-|---|---|
-| `self` | `/` |
-| `me` | `/accounts/me` |
-| `projects` | `/projects` |
-| `create-project` | `/projects` |
-| `logout` | `/auth/logout` |
-| `login` | `/auth/login` |
-| `create-account` | `/accounts` |
-
-#### Scenario: Entrada sem token
-
-```gherkin
-When chega GET / sem o header Authorization
-Then a resposta é 200
-And _links traz somente self, login e create-account
-```
-
-#### Scenario: Entrada com token válido
-
-```gherkin
-Given um token válido
-When chega GET / com esse token
-Then a resposta é 200
-And _links traz somente self, me, projects, create-project e logout
-```
-
-#### Scenario: Entrada com token inválido
-
-```gherkin
-Given <token>
-When chega GET / com o header Authorization desse token
-Then a resposta é 200
-And _links traz somente self, login e create-account
-
-Examples:
-  | token                               |
-  | um token que nunca foi emitido      |
-  | um token cujo expires_at já passou  |
-  | o header Authorization "Basic YWJj" |
-```
-
-### Requirement: Ponto de entrada documentado no OpenAPI
-
-`GET /` SHALL aparecer no documento OpenAPI exposto pela aplicação, com os códigos de resposta que produz.
-
-#### Scenario: OpenAPI descreve a entrada
-
-```gherkin
-When o documento OpenAPI é solicitado
-Then ele descreve GET / com a resposta 200
-And GET / não lista a resposta 401
 ```
