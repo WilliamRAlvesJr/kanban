@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 class ProjectApiTest {
 
 	private static final String HAL_JSON = "application/hal+json";
+
+	private static final String[] PERMISSIONS = {"ADD_BOARDS", "ADD_MEMBER", "ARCHIVE_PROJECT", "EDIT_MEMBER",
+			"EDIT_PROJECT", "REMOVE_MEMBER", "RESTORE_PROJECT", "VIEW_BOARDS", "VIEW_MEMBER", "VIEW_PROJECT"};
 
 	@Autowired
 	MockMvc mockMvc;
@@ -248,6 +252,89 @@ class ProjectApiTest {
 	}
 
 	@Test
+	void listsProjectOfMemberWithViewProject() throws Exception {
+		String id = createProject(tokenOf("bruno@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		insertMember(id, "ana@exemplo.com", "VIEW_PROJECT");
+
+		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(hasItem(id)));
+	}
+
+	@Test
+	void hidesProjectOfMemberWithoutViewProject() throws Exception {
+		String id = createProject(tokenOf("bruno@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		insertMember(id, "ana@exemplo.com", "EDIT_PROJECT", "VIEW_MEMBER");
+
+		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(not(hasItem(id))));
+	}
+
+	@Test
+	void linksListedProjectByMemberPermissions() throws Exception {
+		String id = createProject(tokenOf("bruno@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		insertMember(id, "ana@exemplo.com", "VIEW_PROJECT");
+
+		mockMvc.perform(get("/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("ana@exemplo.com")))
+				.andExpect(jsonPath("$._embedded.projects", hasSize(1)))
+				.andExpect(jsonPath("$._embedded.projects[0]._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._embedded.projects[0]._links.self.href").value("/projects/" + id));
+	}
+
+	@Test
+	void listsOnlyArchivedProjectsVisibleToMember() throws Exception {
+		String brunoToken = tokenOf("bruno@exemplo.com");
+		String active = createProject(brunoToken, """
+				{"name": "Ativo"}
+				""");
+		String archived = createProject(brunoToken, """
+				{"name": "Arquivado"}
+				""");
+		archive(archived);
+		insertMember(active, "ana@exemplo.com", "VIEW_PROJECT");
+		insertMember(archived, "ana@exemplo.com", "VIEW_PROJECT");
+		String anaToken = tokenOf("ana@exemplo.com");
+		createProject(anaToken, """
+				{"name": "Da Ana"}
+				""");
+
+		mockMvc.perform(get("/projects").param("archived", "true")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + anaToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(archived)));
+	}
+
+	@Test
+	void listsOnlyActiveProjectsVisibleToMember() throws Exception {
+		String brunoToken = tokenOf("bruno@exemplo.com");
+		String active = createProject(brunoToken, """
+				{"name": "Ativo"}
+				""");
+		String archived = createProject(brunoToken, """
+				{"name": "Arquivado"}
+				""");
+		archive(archived);
+		insertMember(active, "ana@exemplo.com", "VIEW_PROJECT");
+		insertMember(archived, "ana@exemplo.com", "VIEW_PROJECT");
+		String anaToken = tokenOf("ana@exemplo.com");
+		archive(createProject(anaToken, """
+				{"name": "Da Ana"}
+				"""));
+
+		mockMvc.perform(get("/projects").param("archived", "false")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + anaToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.projects[*].id").value(contains(active)));
+	}
+
+	@Test
 	void linksProjectList() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
 		createProject(token, """
@@ -364,12 +451,14 @@ class ProjectApiTest {
 				""");
 
 		mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-				.andExpect(jsonPath("$._links", aMapWithSize(5)))
+				.andExpect(jsonPath("$._links", aMapWithSize(7)))
 				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id))
 				.andExpect(jsonPath("$._links.edit.href").value("/projects/" + id))
 				.andExpect(jsonPath("$._links.archive.href").value("/projects/" + id + "/archive"))
 				.andExpect(jsonPath("$._links.boards.href").value("/projects/" + id + "/boards"))
-				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"));
+				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"))
+				.andExpect(jsonPath("$._links.members.href").value("/projects/" + id + "/members"))
+				.andExpect(jsonPath("$._links['add-member'].href").value("/projects/" + id + "/members"));
 	}
 
 	@Test
@@ -381,12 +470,39 @@ class ProjectApiTest {
 		archive(id);
 
 		mockMvc.perform(get("/projects/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-				.andExpect(jsonPath("$._links", aMapWithSize(5)))
+				.andExpect(jsonPath("$._links", aMapWithSize(7)))
 				.andExpect(jsonPath("$._links.self.href").value("/projects/" + id))
 				.andExpect(jsonPath("$._links.edit.href").value("/projects/" + id))
 				.andExpect(jsonPath("$._links.restore.href").value("/projects/" + id + "/restore"))
 				.andExpect(jsonPath("$._links.boards.href").value("/projects/" + id + "/boards"))
-				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"));
+				.andExpect(jsonPath("$._links['create-board'].href").value("/projects/" + id + "/boards"))
+				.andExpect(jsonPath("$._links.members.href").value("/projects/" + id + "/members"))
+				.andExpect(jsonPath("$._links['add-member'].href").value("/projects/" + id + "/members"));
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"false, VIEW_PROJECT, self",
+			"false, VIEW_PROJECT ARCHIVE_PROJECT RESTORE_PROJECT, self archive",
+			"true, VIEW_PROJECT ARCHIVE_PROJECT RESTORE_PROJECT, self restore",
+			"false, VIEW_PROJECT EDIT_PROJECT VIEW_BOARDS ADD_MEMBER, self edit boards add-member"})
+	void linksProjectByMemberPermissions(boolean archived, String permissions, String links) throws Exception {
+		String id = createProject(tokenOf("ana@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		if (archived) {
+			archive(id);
+		}
+		insertMember(id, "bia@exemplo.com", permissions.split(" "));
+
+		String body = getProject(tokenOf("bia@exemplo.com"), id)
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(JsonPath.<Map<String, Object>>read(body, "$._links").keySet())
+				.containsExactlyInAnyOrder(links.split(" "));
 	}
 
 	@ParameterizedTest
@@ -666,6 +782,50 @@ class ProjectApiTest {
 		assertThat(archivedAtOf(id)).isNotNull();
 	}
 
+	@ParameterizedTest
+	@CsvSource({
+			"false, VIEW_PROJECT, GET",
+			"false, EDIT_PROJECT, PUT",
+			"false, ARCHIVE_PROJECT, ARCHIVE",
+			"true, RESTORE_PROJECT, RESTORE"})
+	void allowsMemberWithProjectPermission(boolean archived, String permission, String request) throws Exception {
+		String id = createProject(tokenOf("ana@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		if (archived) {
+			archive(id);
+		}
+		insertMember(id, "bia@exemplo.com", permission);
+
+		mockMvc.perform(requestOf(request, id).header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("bia@exemplo.com")))
+				.andExpect(status().isOk());
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"false, VIEW_PROJECT, GET",
+			"false, EDIT_PROJECT, PUT",
+			"false, ARCHIVE_PROJECT, ARCHIVE",
+			"true, RESTORE_PROJECT, RESTORE"})
+	void deniesMemberWithoutProjectPermission(boolean archived, String permission, String request) throws Exception {
+		String id = createProject(tokenOf("ana@exemplo.com"), """
+				{"name": "Produto"}
+				""");
+		if (archived) {
+			archive(id);
+		}
+		OffsetDateTime archivedAt = archivedAtOf(id);
+		insertMember(id, "bia@exemplo.com", Stream.of(PERMISSIONS)
+				.filter(granted -> !granted.equals(permission))
+				.toArray(String[]::new));
+
+		mockMvc.perform(requestOf(request, id).header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOf("bia@exemplo.com")))
+				.andExpect(status().isForbidden());
+
+		assertThat(nameOf(id)).isEqualTo("Produto");
+		assertThat(archivedAtOf(id)).isEqualTo(archivedAt);
+	}
+
 	@Test
 	void keepsBoardsOnProjectArchive() throws Exception {
 		String token = tokenOf("ana@exemplo.com");
@@ -755,6 +915,11 @@ class ProjectApiTest {
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.404").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}'].get.responses.403").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}'].put.responses.403").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}/archive'].post.responses.403").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}/restore'].post.responses.403").exists())
+				.andExpect(jsonPath("$.paths['/projects'].post.responses.403").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.EntityModelProjectResponse.properties.archived_at").exists())
 				.andExpect(jsonPath("$.components.schemas.UpdateProjectRequest.properties.name").exists());
 	}
@@ -851,6 +1016,20 @@ class ProjectApiTest {
 
 	private void archive(String id) {
 		jdbcTemplate.update("update projects set archived_at = now() where id = ?", UUID.fromString(id));
+	}
+
+	private void insertMember(String projectId, String email, String... permissions) throws Exception {
+		if (countAccounts(email) == 0) {
+			createAccount(email);
+		}
+		UUID memberId = UUID.randomUUID();
+		jdbcTemplate.update("""
+				insert into project_members (id, project_id, account_id, created_at)
+				select ?, ?, id, now() from accounts where email = ?""", memberId, UUID.fromString(projectId), email);
+		for (String permission : permissions) {
+			jdbcTemplate.update("insert into project_member_permissions (project_member_id, permission) values (?, ?)",
+					memberId, permission);
+		}
 	}
 
 	private String nameOf(String id) {

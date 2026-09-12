@@ -1,6 +1,10 @@
 package com.william.kanban.account;
 
+import static java.util.stream.Collectors.toMap;
+
+import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +41,16 @@ public class AccountService {
 			return Optional.empty();
 		}
 		return Optional.of(account.get().getId());
+	}
+
+	public Optional<UUID> findIdByEmail(String email) {
+		return repository.findByEmail(email.toLowerCase(Locale.ROOT)).map(Account::getId);
+	}
+
+	public Map<UUID, AccountSummary> summariesOf(Collection<UUID> ids) {
+		return repository.findAllById(ids).stream()
+				.collect(toMap(Account::getId,
+						account -> new AccountSummary(account.getId(), account.getEmail(), account.getDisplayName())));
 	}
 
 	Account findById(UUID id) {

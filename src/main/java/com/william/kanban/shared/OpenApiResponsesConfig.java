@@ -35,6 +35,10 @@ class OpenApiResponsesConfig {
 					|| Authentication.class.isAssignableFrom(p.getParameterType()))) {
 				addProblem(operation, "401", "Token ausente, desconhecido ou expirado");
 			}
+			if (any(parameters, p -> p.hasParameterAnnotation(PathVariable.class)
+					&& "projectId".equals(p.getParameter().getName()))) {
+				addProblem(operation, "403", "Permissão de projeto ausente");
+			}
 			if (any(parameters, p -> p.hasParameterAnnotation(PathVariable.class))) {
 				addProblem(operation, "404", "Recurso não encontrado");
 			}

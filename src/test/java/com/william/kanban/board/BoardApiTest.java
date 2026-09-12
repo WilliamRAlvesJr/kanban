@@ -16,11 +16,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import com.william.kanban.TestcontainersConfiguration;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class BoardApiTest {
+
+	private static final String[] PERMISSIONS = {"ADD_BOARDS", "ADD_MEMBER", "ARCHIVE_PROJECT", "EDIT_MEMBER",
+			"EDIT_PROJECT", "REMOVE_MEMBER", "RESTORE_PROJECT", "VIEW_BOARDS", "VIEW_MEMBER", "VIEW_PROJECT"};
 
 	@Autowired
 	MockMvc mockMvc;
@@ -158,6 +163,93 @@ class BoardApiTest {
 
 		assertThat(foreign.replace(projectId, unknownId)).isEqualTo(unknown);
 		assertThat(countBoards()).isZero();
+	}
+
+	@Test
+	void createsBoardAsMemberWithAddBoards() throws Exception {
+		String anaToken = tokenOf("ana@exemplo.com");
+		String projectId = createProject(anaToken);
+		insertMember(projectId, "bia@exemplo.com", "ADD_BOARDS");
+		String biaToken = tokenOf("bia@exemplo.com");
+
+		String location = postBoard(biaToken, projectId, """
+				{"name": "Sprint 12"}
+				""")
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getHeader(HttpHeaders.LOCATION);
+
+		getBoards(anaToken, projectId).andExpect(jsonPath("$._embedded.boards[*].name").value(contains("Sprint 12")));
+		mockMvc.perform(get(location).header(HttpHeaders.AUTHORIZATION, "Bearer " + biaToken))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void listsBoardsAsMemberWithViewBoards() throws Exception {
+		String anaToken = tokenOf("ana@exemplo.com");
+		String projectId = createProject(anaToken);
+		String first = createBoard(anaToken, projectId, """
+				{"name": "Sprint 12"}
+				""");
+		String second = createBoard(anaToken, projectId, """
+				{"name": "Sprint 13"}
+				""");
+		insertMember(projectId, "bia@exemplo.com", "VIEW_BOARDS");
+
+		getBoards(tokenOf("bia@exemplo.com"), projectId)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._embedded.boards[*].id").value(containsInAnyOrder(first, second)));
+	}
+
+	@Test
+	void deniesBoardCreationToMemberWithoutAddBoards() throws Exception {
+		String projectId = createProject(tokenOf("ana@exemplo.com"));
+		insertMember(projectId, "bia@exemplo.com", permissionsExcept("ADD_BOARDS"));
+
+		postBoard(tokenOf("bia@exemplo.com"), projectId, """
+				{"name": "Sprint 12"}
+				""")
+				.andExpect(status().isForbidden());
+
+		assertThat(countBoards()).isZero();
+	}
+
+	@Test
+	void deniesBoardListToMemberWithoutViewBoards() throws Exception {
+		String anaToken = tokenOf("ana@exemplo.com");
+		String projectId = createProject(anaToken);
+		createBoard(anaToken, projectId, """
+				{"name": "Sprint 12"}
+				""");
+		insertMember(projectId, "bia@exemplo.com", permissionsExcept("VIEW_BOARDS"));
+
+		getBoards(tokenOf("bia@exemplo.com"), projectId).andExpect(status().isForbidden());
+	}
+
+	@Test
+	void hidesBoardOfProjectWhereAccountIsMember() throws Exception {
+		String brunoToken = tokenOf("bruno@exemplo.com");
+		String projectId = createProject(brunoToken);
+		String id = createBoard(brunoToken, projectId, """
+				{"name": "Sprint 12"}
+				""");
+		insertMember(projectId, "ana@exemplo.com", PERMISSIONS);
+		String anaToken = tokenOf("ana@exemplo.com");
+		String unknownId = UUID.randomUUID().toString();
+
+		String member = getBoard(anaToken, id)
+				.andExpect(status().isNotFound())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		String unknown = getBoard(anaToken, unknownId)
+				.andExpect(status().isNotFound())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(member.replace(id, unknownId)).isEqualTo(unknown);
 	}
 
 	@Test
@@ -423,6 +515,40 @@ class BoardApiTest {
 	}
 
 	@Test
+	void linksBoardListForMember() throws Exception {
+		String projectId = createProject(tokenOf("ana@exemplo.com"));
+		insertMember(projectId, "bia@exemplo.com", "VIEW_BOARDS");
+
+		getBoards(tokenOf("bia@exemplo.com"), projectId)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._links", aMapWithSize(1)))
+				.andExpect(jsonPath("$._links.self.href").value("/projects/" + projectId + "/boards"));
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"VIEW_BOARDS, self",
+			"VIEW_BOARDS VIEW_PROJECT, self project",
+			"VIEW_BOARDS VIEW_PROJECT EDIT_PROJECT ADD_BOARDS, self project"})
+	void linksBoardByMemberPermissions(String permissions, String links) throws Exception {
+		String anaToken = tokenOf("ana@exemplo.com");
+		String projectId = createProject(anaToken);
+		createBoard(anaToken, projectId, """
+				{"name": "Sprint 12"}
+				""");
+		insertMember(projectId, "bia@exemplo.com", permissions.split(" "));
+
+		String body = getBoards(tokenOf("bia@exemplo.com"), projectId)
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(JsonPath.<Map<String, Object>>read(body, "$._embedded.boards[0]._links").keySet())
+				.containsExactlyInAnyOrder(links.split(" "));
+	}
+
+	@Test
 	void doesNotListBoardsOfProjectOfAnotherOwner() throws Exception {
 		String brunoToken = tokenOf("bruno@exemplo.com");
 		String projectId = createProject(brunoToken);
@@ -526,6 +652,32 @@ class BoardApiTest {
 				.getContentAsString();
 
 		assertThat(foreign.replace(brunoProjectId, unknownId)).isEqualTo(unknown);
+		assertThat(projectIdOf(id)).isEqualTo(UUID.fromString(produto));
+	}
+
+	@Test
+	void doesNotMoveBoardToProjectWhereAccountIsMember() throws Exception {
+		String anaToken = tokenOf("ana@exemplo.com");
+		String produto = createProject(anaToken);
+		String id = createBoard(anaToken, produto, """
+				{"name": "Sprint 12"}
+				""");
+		String operacoes = createProject(tokenOf("bruno@exemplo.com"));
+		insertMember(operacoes, "ana@exemplo.com", PERMISSIONS);
+		String unknownId = UUID.randomUUID().toString();
+
+		String member = moveBoard(anaToken, id, projectBody(operacoes))
+				.andExpect(status().isNotFound())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		String unknown = moveBoard(anaToken, id, projectBody(unknownId))
+				.andExpect(status().isNotFound())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(member.replace(operacoes, unknownId)).isEqualTo(unknown);
 		assertThat(projectIdOf(id)).isEqualTo(UUID.fromString(produto));
 	}
 
@@ -933,10 +1085,13 @@ class BoardApiTest {
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/boards'].get.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/boards'].get.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/projects/{projectId}/boards'].get.responses.404").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}/boards'].get.responses.403").exists())
+				.andExpect(jsonPath("$.paths['/projects/{projectId}/boards'].post.responses.403").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.200").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.400").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.401").exists())
 				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.404").exists())
+				.andExpect(jsonPath("$.paths['/boards/{id}/move'].post.responses.403").doesNotExist())
 				.andExpect(jsonPath("$.paths['/boards'].get").doesNotExist())
 				.andExpect(jsonPath("$.paths['/boards'].post").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.EntityModelBoardResponse.properties.project_id").exists())
@@ -1089,6 +1244,24 @@ class BoardApiTest {
 
 	private void archive(String id) {
 		jdbcTemplate.update("update boards set archived_at = now() where id = ?", UUID.fromString(id));
+	}
+
+	private void insertMember(String projectId, String email, String... permissions) throws Exception {
+		if (countAccounts(email) == 0) {
+			createAccount(email);
+		}
+		UUID memberId = UUID.randomUUID();
+		jdbcTemplate.update("""
+				insert into project_members (id, project_id, account_id, created_at)
+				select ?, ?, id, now() from accounts where email = ?""", memberId, UUID.fromString(projectId), email);
+		for (String permission : permissions) {
+			jdbcTemplate.update("insert into project_member_permissions (project_member_id, permission) values (?, ?)",
+					memberId, permission);
+		}
+	}
+
+	private static String[] permissionsExcept(String excluded) {
+		return Stream.of(PERMISSIONS).filter(permission -> !permission.equals(excluded)).toArray(String[]::new);
 	}
 
 	private void archiveProject(String projectId) {

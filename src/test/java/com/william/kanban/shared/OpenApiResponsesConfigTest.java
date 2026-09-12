@@ -51,6 +51,11 @@ class OpenApiResponsesConfigTest {
 	}
 
 	@Test
+	void documents403ForProjectIdPathVariable() {
+		assertThat(responsesOf("withProjectIdPathVariable")).containsOnlyKeys("403", "404");
+	}
+
+	@Test
 	void documentsNothingForPlainParameter() {
 		assertThat(responsesOf("withPlainParameter")).isEmpty();
 	}
@@ -154,6 +159,13 @@ class OpenApiResponsesConfigTest {
 
 				@PathVariable
 				UUID id
+
+		);
+
+		void withProjectIdPathVariable(
+
+				@PathVariable
+				UUID projectId
 
 		);
 

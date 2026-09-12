@@ -1,6 +1,8 @@
 package com.william.kanban.board;
 
+import com.william.kanban.project.ProjectAccess;
 import jakarta.validation.Valid;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
@@ -20,6 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 class BoardController {
+
+	/** GET /boards/{id} só atende a dona do projeto, então o quadro sai com os links dela. */
+	private static final ProjectAccess OWNER_ACCESS = new ProjectAccess(true, Set.of());
 
 	private final BoardService service;
 
@@ -76,7 +81,7 @@ class BoardController {
 			UUID id
 
 	) {
-		return assembler.toModel(service.findById(id, accountId));
+		return assembler.toModel(service.findById(id, accountId), OWNER_ACCESS);
 	}
 
 	@PutMapping("/boards/{id}")

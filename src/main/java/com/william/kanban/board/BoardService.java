@@ -1,5 +1,7 @@
 package com.william.kanban.board;
 
+import com.william.kanban.project.ProjectAccess;
+import com.william.kanban.project.ProjectPermission;
 import com.william.kanban.project.ProjectService;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -20,8 +22,8 @@ public class BoardService {
 		this.projectService = projectService;
 	}
 
-	Board create(UUID projectId, UUID ownerId, String name, String description) {
-		projectService.requireOwned(projectId, ownerId);
+	Board create(UUID projectId, UUID accountId, String name, String description) {
+		projectService.requireAccess(projectId, accountId, ProjectPermission.ADD_BOARDS);
 		return repository.save(new Board(projectId, name, description));
 	}
 
@@ -75,8 +77,12 @@ public class BoardService {
 		return board;
 	}
 
-	List<Board> list(UUID projectId, UUID ownerId, Boolean archived) {
-		projectService.requireOwned(projectId, ownerId);
+	ProjectBoards list(UUID projectId, UUID accountId, Boolean archived) {
+		ProjectAccess access = projectService.requireAccess(projectId, accountId, ProjectPermission.VIEW_BOARDS);
+		return new ProjectBoards(boardsOf(projectId, archived), access);
+	}
+
+	private List<Board> boardsOf(UUID projectId, Boolean archived) {
 		if (archived == null) {
 			return repository.findByProjectIdOrderByCreatedAtDesc(projectId);
 		}
