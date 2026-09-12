@@ -17,43 +17,5 @@ services:
       timeout: 5s
       retries: 5
 
-  sonarqube:
-    image: sonarqube:26.9.0.129388-community
-    container_name: kanban-sonarqube
-    profiles: [sonar]
-    depends_on:
-      sonarqube-db:
-        condition: service_healthy
-    environment:
-      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonar
-      SONAR_JDBC_USERNAME: sonar
-      SONAR_JDBC_PASSWORD: sonar
-    ports:
-      - "9000:9000"
-    volumes:
-      - sonarqube-data:/opt/sonarqube/data
-      - sonarqube-extensions:/opt/sonarqube/extensions
-      - sonarqube-logs:/opt/sonarqube/logs
-
-  sonarqube-db:
-    image: postgres:17-alpine
-    container_name: kanban-sonarqube-db
-    profiles: [sonar]
-    environment:
-      POSTGRES_DB: sonar
-      POSTGRES_USER: sonar
-      POSTGRES_PASSWORD: sonar
-    volumes:
-      - sonarqube-pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
   kanban-pgdata:
-  sonarqube-data:
-  sonarqube-extensions:
-  sonarqube-logs:
-  sonarqube-pgdata:

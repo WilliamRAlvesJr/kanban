@@ -32,7 +32,7 @@ O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exce�
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
 - Teste de mutação pelo `pitest-maven` 1.30.0 com `pitest-junit5-plugin` 1.2.3, fora do ciclo padrão: `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` gera `target/pit-reports/` e reprova abaixo de 80% de mutantes mortos
 - Cobertura pelo `jacoco-maven-plugin`: a fase `test` gera o relatório em `target/site/jacoco/` e roda o `check`, que reprova o build abaixo de 80% de instrução ou de branch; `KanbanApplication` fica fora da medição
-- Análise estática pelo SonarQube Community Build em container, no profile `sonar` do `compose.yaml`, com Postgres próprio, e pelo `sonar-maven-plugin`, só em `pluginManagement`. `sonar.host.url` fica no `pom.xml`: sem ele o scanner envia a análise para o SonarQube Cloud e falha com 403. A cobertura vem do `jacoco.xml` do `verify`, com `KanbanApplication` em `sonar.coverage.exclusions`
+- Análise estática pelo SonarQube Community Build em container, compartilhado entre projetos e mantido fora do repositório, em `C:\Desenv\sonarqube`, e pelo `sonar-maven-plugin`, só em `pluginManagement`. `sonar.host.url` fica no `pom.xml`: sem ele o scanner envia a análise para o SonarQube Cloud e falha com 403. A cobertura vem do `jacoco.xml` do `verify`, com `KanbanApplication` em `sonar.coverage.exclusions`
 
 ## Comandos
 
@@ -62,10 +62,10 @@ export KANBAN_DB_PASSWORD=kanban
 ```
 
 ```bash
-docker compose --profile sonar up -d            # SonarQube em http://localhost:9000
-export SONAR_TOKEN=<token>                      # token gerado em My Account > Security
-./mvnw clean verify sonar:sonar                 # testes, cobertura e análise
-docker compose stop sonarqube sonarqube-db      # para o SonarQube
+docker compose -f /c/Desenv/sonarqube/compose.yaml up -d   # SonarQube em http://localhost:9000
+export SONAR_TOKEN=<token>                                 # token gerado em My Account > Security
+./mvnw clean verify sonar:sonar                            # testes, cobertura e análise
+docker compose -f /c/Desenv/sonarqube/compose.yaml stop    # para o SonarQube
 ```
 
 Não há linter configurado.
