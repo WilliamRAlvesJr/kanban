@@ -146,19 +146,10 @@ existe, e o teste de ponta a ponta continua verde.
 
 ## Análise estática
 
-O SonarQube Community Build roda em container, compartilhado entre projetos, a partir de
-`C:\Desenv\sonarqube`; o `README.md` daquela pasta descreve a subida, o login e o token.
-
-```bash
-docker compose -f /c/Desenv/sonarqube/compose.yaml up -d   # sobe em http://localhost:9000
-export SONAR_TOKEN=<token>
-./mvnw clean verify sonar:sonar
-docker compose -f /c/Desenv/sonarqube/compose.yaml stop    # para
-```
-
-`sonar:sonar` não roda testes: lê as classes compiladas e o `target/site/jacoco/jacoco.xml` que o
-`verify` deixou. `KanbanApplication` fica fora da cobertura, como no JaCoCo. O resultado fica em
-http://localhost:9000/dashboard?id=com.william%3Akanban.
+O SonarQube Cloud analisa o repositório a cada push no GitHub, pela análise automática, sem
+scanner no build. O resultado fica em
+https://sonarcloud.io/project/overview?id=WilliamRAlvesJr_kanban. A análise automática não
+importa cobertura, que fica só no JaCoCo.
 
 ## Build
 
@@ -178,7 +169,7 @@ http://localhost:9000/dashboard?id=com.william%3Akanban.
   `BCryptPasswordEncoder` e pela cadeia de filtros que resolve o token
 - Testes com `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` e Testcontainers
 - Cobertura com `jacoco-maven-plugin` 0.8.13
-- Análise estática com SonarQube Community Build 26.9, em container, e `sonar-maven-plugin` 5.8
+- Análise estática com SonarQube Cloud, na análise automática
 
 A linha 3.x do springdoc é a compatível com Spring Boot 4; a 2.x atende o Boot 3.
 

@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toSet;
 
 import com.william.kanban.board.BoardService;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -46,7 +47,7 @@ class LaneService {
 			return lane;
 		}
 		int position = lane.getPosition();
-		lane.setArchivedAt(OffsetDateTime.now());
+		lane.setArchivedAt(OffsetDateTime.now(ZoneId.systemDefault()));
 		lane.setPosition(null);
 		repository.shiftDownAbove(boardId, position);
 		return lane;

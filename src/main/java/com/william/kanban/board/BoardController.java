@@ -1,13 +1,13 @@
 package com.william.kanban.board;
 
 import com.william.kanban.project.ProjectAccess;
+import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,7 +37,7 @@ class BoardController {
 
 	@PostMapping("/projects/{projectId}/boards")
 	@ResponseStatus(HttpStatus.CREATED)
-	ResponseEntity<RepresentationModel<?>> create(
+	ResponseEntity<LinksModel> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -50,13 +50,13 @@ class BoardController {
 			CreateBoardRequest request
 
 	) {
-		RepresentationModel<?> model =
+		LinksModel model =
 				assembler.selfOf(service.create(projectId, accountId, request.name(), request.description()));
 		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
 	}
 
 	@GetMapping("/projects/{projectId}/boards")
-	CollectionModel<?> list(
+	CollectionModel<Object> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -85,7 +85,7 @@ class BoardController {
 	}
 
 	@PutMapping("/boards/{id}")
-	RepresentationModel<?> update(
+	LinksModel update(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -102,7 +102,7 @@ class BoardController {
 	}
 
 	@PostMapping("/boards/{id}/archive")
-	RepresentationModel<?> archive(
+	LinksModel archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -115,7 +115,7 @@ class BoardController {
 	}
 
 	@PostMapping("/boards/{id}/restore")
-	RepresentationModel<?> restore(
+	LinksModel restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -128,7 +128,7 @@ class BoardController {
 	}
 
 	@PostMapping("/boards/{id}/move")
-	RepresentationModel<?> move(
+	LinksModel move(
 
 			@AuthenticationPrincipal
 			UUID accountId,

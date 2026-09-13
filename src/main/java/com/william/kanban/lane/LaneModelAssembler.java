@@ -1,11 +1,11 @@
 package com.william.kanban.lane;
 
+import com.william.kanban.shared.LinksModel;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.EmbeddedWrappers;
 import org.springframework.stereotype.Component;
 
@@ -24,10 +24,10 @@ class LaneModelAssembler {
 	}
 
 	/** CollectionModel sem item omite _embedded; o wrapper vazio mantém o array. */
-	CollectionModel<?> toCollection(List<Lane> lanes, UUID boardId) {
-		CollectionModel<?> collection = lanes.isEmpty()
+	CollectionModel<Object> toCollection(List<Lane> lanes, UUID boardId) {
+		CollectionModel<Object> collection = lanes.isEmpty()
 				? CollectionModel.of(List.of(WRAPPERS.emptyCollectionOf(LaneResponse.class)))
-				: CollectionModel.of(lanes.stream().map(this::toModel).toList());
+				: CollectionModel.of(lanes.stream().<Object>map(this::toModel).toList());
 		String lanesHref = lanesHrefOf(boardId);
 		return collection.add(
 				Link.of(lanesHref),
@@ -36,12 +36,12 @@ class LaneModelAssembler {
 				Link.of(boardHrefOf(boardId), "board"));
 	}
 
-	RepresentationModel<?> selfOf(Lane lane) {
-		return new RepresentationModel<>(Link.of(hrefOf(lane)));
+	LinksModel selfOf(Lane lane) {
+		return new LinksModel(Link.of(hrefOf(lane)));
 	}
 
-	RepresentationModel<?> selfOfCollection(UUID boardId) {
-		return new RepresentationModel<>(Link.of(lanesHrefOf(boardId)));
+	LinksModel selfOfCollection(UUID boardId) {
+		return new LinksModel(Link.of(lanesHrefOf(boardId)));
 	}
 
 	private static String hrefOf(Lane lane) {

@@ -4,6 +4,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,7 +60,7 @@ public class ProjectService {
 	Project archive(UUID id, UUID accountId) {
 		Project project = load(id, accountId, ProjectPermission.ARCHIVE_PROJECT).project();
 		if (project.getArchivedAt() == null) {
-			project.setArchivedAt(OffsetDateTime.now());
+			project.setArchivedAt(OffsetDateTime.now(ZoneId.systemDefault()));
 		}
 		return project;
 	}

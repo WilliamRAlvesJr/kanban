@@ -1,5 +1,6 @@
 package com.william.kanban.project;
 
+import com.william.kanban.shared.LinksModel;
 import java.util.List;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
@@ -32,15 +33,15 @@ class ProjectModelAssembler {
 	}
 
 	/** CollectionModel sem item omite _embedded; o wrapper vazio mantém o array. */
-	CollectionModel<?> toCollection(List<ProjectView> views) {
-		CollectionModel<?> collection = views.isEmpty()
+	CollectionModel<Object> toCollection(List<ProjectView> views) {
+		CollectionModel<Object> collection = views.isEmpty()
 				? CollectionModel.of(List.of(WRAPPERS.emptyCollectionOf(ProjectResponse.class)))
-				: CollectionModel.of(views.stream().map(this::toModel).toList());
+				: CollectionModel.of(views.stream().<Object>map(this::toModel).toList());
 		return collection.add(Link.of("/projects"), Link.of("/projects", "create-project"));
 	}
 
-	RepresentationModel<?> selfOf(Project project) {
-		return new RepresentationModel<>(Link.of("/projects/" + project.getId()));
+	LinksModel selfOf(Project project) {
+		return new LinksModel(Link.of("/projects/" + project.getId()));
 	}
 
 	private static void addIf(RepresentationModel<?> model, boolean condition, Link link) {

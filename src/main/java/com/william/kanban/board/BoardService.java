@@ -4,6 +4,7 @@ import com.william.kanban.project.ProjectAccess;
 import com.william.kanban.project.ProjectPermission;
 import com.william.kanban.project.ProjectService;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class BoardService {
 	Board archive(UUID id, UUID ownerId) {
 		Board board = findById(id, ownerId);
 		if (board.getArchivedAt() == null) {
-			board.setArchivedAt(OffsetDateTime.now());
+			board.setArchivedAt(OffsetDateTime.now(ZoneId.systemDefault()));
 		}
 		return board;
 	}

@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -43,7 +44,7 @@ class AuthService {
 		byte[] bytes = new byte[TOKEN_BYTES];
 		random.nextBytes(bytes);
 		String value = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-		OffsetDateTime expiresAt = OffsetDateTime.now().plus(tokenTtl);
+		OffsetDateTime expiresAt = OffsetDateTime.now(ZoneId.systemDefault()).plus(tokenTtl);
 		repository.save(new AuthToken(accountId, hash(value), expiresAt));
 		return new IssuedToken(value, expiresAt);
 	}
@@ -55,7 +56,7 @@ class AuthService {
 
 	Optional<UUID> resolve(String token) {
 		return repository.findByTokenHash(hash(token))
-				.filter(found -> found.getExpiresAt().isAfter(OffsetDateTime.now()))
+				.filter(found -> found.getExpiresAt().isAfter(OffsetDateTime.now(ZoneId.systemDefault())))
 				.map(AuthToken::getAccountId);
 	}
 

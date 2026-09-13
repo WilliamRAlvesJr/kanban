@@ -1,5 +1,6 @@
 package com.william.kanban.project;
 
+import com.william.kanban.shared.LinksModel;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -7,7 +8,6 @@ import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.EmbeddedWrappers;
 import org.springframework.stereotype.Component;
 
@@ -29,10 +29,10 @@ class ProjectMemberModelAssembler {
 	}
 
 	/** CollectionModel sem item omite _embedded; o wrapper vazio mantém o array. */
-	CollectionModel<?> toCollection(ProjectMembers members, UUID projectId) {
-		CollectionModel<?> collection = members.members().isEmpty()
+	CollectionModel<Object> toCollection(ProjectMembers members, UUID projectId) {
+		CollectionModel<Object> collection = members.members().isEmpty()
 				? CollectionModel.of(List.of(WRAPPERS.emptyCollectionOf(ProjectMemberResponse.class)))
-				: CollectionModel.of(members.members().stream().map(this::toModel).toList());
+				: CollectionModel.of(members.members().stream().<Object>map(this::toModel).toList());
 		String project = "/projects/" + projectId;
 		collection.add(Link.of(project + "/members"));
 		if (members.access().allows(ProjectPermission.ADD_MEMBER)) {
@@ -44,8 +44,8 @@ class ProjectMemberModelAssembler {
 		return collection;
 	}
 
-	RepresentationModel<?> selfOf(ProjectMember member) {
-		return new RepresentationModel<>(Link.of(hrefOf(member)));
+	LinksModel selfOf(ProjectMember member) {
+		return new LinksModel(Link.of(hrefOf(member)));
 	}
 
 	private static String hrefOf(ProjectMember member) {

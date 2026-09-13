@@ -28,14 +28,12 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- o jackson-databind 3.1.5 e 2.21.5 do parent 4.1.1 tem vulnerabilidade corrigida no patch seguinte -->
+		<jackson-bom.version>3.1.6</jackson-bom.version>
+		<jackson-2-bom.version>2.21.6</jackson-2-bom.version>
 		<jacoco.version>0.8.13</jacoco.version>
 		<pitest.version>1.30.0</pitest.version>
 		<pitest-junit5.version>1.2.3</pitest-junit5.version>
-		<sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
-		<!-- sem o host o scanner envia a análise para o SonarQube Cloud -->
-		<sonar.host.url>http://localhost:9000</sonar.host.url>
-		<sonar.projectName>kanban</sonar.projectName>
-		<sonar.coverage.exclusions>**/KanbanApplication.java</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -122,16 +120,6 @@
 	</dependencies>
 
 	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.sonarsource.scanner.maven</groupId>
-					<artifactId>sonar-maven-plugin</artifactId>
-					<version>${sonar-maven-plugin.version}</version>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>

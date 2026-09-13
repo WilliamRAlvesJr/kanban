@@ -1,12 +1,11 @@
 package com.william.kanban.account;
 
+import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,7 +30,7 @@ class AccountController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	ResponseEntity<RepresentationModel<?>> create(
+	ResponseEntity<LinksModel> create(
 
 			@Valid
 			@RequestBody
@@ -40,7 +39,7 @@ class AccountController {
 	) {
 		service.create(request.email(), request.displayName(), request.password());
 		return ResponseEntity.created(URI.create(ME))
-				.body(new RepresentationModel<>(List.of(Link.of(ME), Link.of("/auth/login", "login"))));
+				.body(new LinksModel(Link.of(ME), Link.of("/auth/login", "login")));
 	}
 
 	@GetMapping("/me")

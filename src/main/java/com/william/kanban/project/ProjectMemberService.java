@@ -3,6 +3,7 @@ package com.william.kanban.project;
 import com.william.kanban.account.AccountService;
 import com.william.kanban.account.AccountSummary;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,7 @@ class ProjectMemberService {
 		accountService.findIdByEmail(email)
 				.filter(memberAccountId -> !projectService.isOwned(projectId, memberAccountId))
 				.ifPresent(memberAccountId -> repository.insertIgnoringDuplicate(
-						UUID.randomUUID(), projectId, memberAccountId, OffsetDateTime.now()));
+						UUID.randomUUID(), projectId, memberAccountId, OffsetDateTime.now(ZoneId.systemDefault())));
 	}
 
 	ProjectMembers list(UUID projectId, UUID accountId) {

@@ -2,12 +2,12 @@ package com.william.kanban.board;
 
 import com.william.kanban.project.ProjectAccess;
 import com.william.kanban.project.ProjectPermission;
+import com.william.kanban.shared.LinksModel;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.EmbeddedWrappers;
 import org.springframework.stereotype.Component;
 
@@ -39,10 +39,10 @@ class BoardModelAssembler {
 	}
 
 	/** CollectionModel sem item omite _embedded; o wrapper vazio mantém o array. */
-	CollectionModel<?> toCollection(ProjectBoards boards, UUID projectId) {
-		CollectionModel<?> collection = boards.boards().isEmpty()
+	CollectionModel<Object> toCollection(ProjectBoards boards, UUID projectId) {
+		CollectionModel<Object> collection = boards.boards().isEmpty()
 				? CollectionModel.of(List.of(WRAPPERS.emptyCollectionOf(BoardResponse.class)))
-				: CollectionModel.of(boards.boards().stream().map(board -> toModel(board, boards.access())).toList());
+				: CollectionModel.of(boards.boards().stream().<Object>map(board -> toModel(board, boards.access())).toList());
 		String project = "/projects/" + projectId;
 		collection.add(Link.of(project + "/boards"));
 		if (boards.access().allows(ProjectPermission.ADD_BOARDS)) {
@@ -54,8 +54,8 @@ class BoardModelAssembler {
 		return collection;
 	}
 
-	RepresentationModel<?> selfOf(Board board) {
-		return new RepresentationModel<>(Link.of("/boards/" + board.getId()));
+	LinksModel selfOf(Board board) {
+		return new LinksModel(Link.of("/boards/" + board.getId()));
 	}
 
 	private static BoardResponse toResponse(Board board) {

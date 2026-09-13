@@ -22,6 +22,8 @@ class SecurityConfig {
 	}
 
 	@Bean
+	// sem sessão nem cookie, e o navegador não anexa o Bearer sozinho: não há requisição forjada a barrar
+	@SuppressWarnings("java:S4502")
 	SecurityFilterChain filterChain(HttpSecurity http, BearerAuthenticationFilter filter,
 			ProblemDetailAuthenticationEntryPoint entryPoint) {
 		return http.csrf(CsrfConfigurer::disable)

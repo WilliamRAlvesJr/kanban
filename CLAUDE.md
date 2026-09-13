@@ -32,7 +32,8 @@ O `GlobalExceptionHandler`, em `com.william.kanban.shared`, converte essas exce�
 - Testes: `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` (JUnit 5) e Testcontainers, que sobem um `postgres:17-alpine` por `TestcontainersConfiguration`
 - Teste de mutação pelo `pitest-maven` 1.30.0 com `pitest-junit5-plugin` 1.2.3, fora do ciclo padrão: `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage` gera `target/pit-reports/` e reprova abaixo de 80% de mutantes mortos
 - Cobertura pelo `jacoco-maven-plugin`: a fase `test` gera o relatório em `target/site/jacoco/` e roda o `check`, que reprova o build abaixo de 80% de instrução ou de branch; `KanbanApplication` fica fora da medição
-- Análise estática pelo SonarQube Community Build em container, compartilhado entre projetos e mantido fora do repositório, em `C:\Desenv\sonarqube`, e pelo `sonar-maven-plugin`, só em `pluginManagement`. `sonar.host.url` fica no `pom.xml`: sem ele o scanner envia a análise para o SonarQube Cloud e falha com 403. A cobertura vem do `jacoco.xml` do `verify`, com `KanbanApplication` em `sonar.coverage.exclusions`
+- Análise estática pelo SonarQube Cloud, organização `williamralvesjr`, projeto `WilliamRAlvesJr_kanban`, na análise automática que roda a cada push no GitHub. O build não tem scanner: com a análise automática ligada, o SonarQube Cloud recusa análise vinda de CI. A análise automática não importa cobertura, que fica só no JaCoCo
+- Análise de vulnerabilidade pelo Snyk CLI, instalado fora do repositório em `C:\Desenv\snyk`. O `.snyk` exclui `src/test/**` do Snyk Code, e o `pom.xml` fixa `jackson-bom.version` e `jackson-2-bom.version` num patch acima do que o parent traz
 
 ## Comandos
 
@@ -61,11 +62,12 @@ export KANBAN_DB_PASSWORD=kanban
 ./mvnw -q verify                # build completo silencioso
 ```
 
+O `snyk test` chama `mvnw.cmd` sem caminho, então o diretório do projeto entra no `PATH`:
+
 ```bash
-docker compose -f /c/Desenv/sonarqube/compose.yaml up -d   # SonarQube em http://localhost:9000
-export SONAR_TOKEN=<token>                                 # token gerado em My Account > Security
-./mvnw clean verify sonar:sonar                            # testes, cobertura e análise
-docker compose -f /c/Desenv/sonarqube/compose.yaml stop    # para o SonarQube
+export SNYK_TOKEN=<token>
+snyk code test                  # análise estática
+PATH="$PWD:$PATH" snyk test     # dependências
 ```
 
 Não há linter configurado.
@@ -87,16 +89,6 @@ Regra do fluxo: a fase de proposta **não edita código de projeto**. Ao propor,
 
 `openspec/agent-harness.json` fixa `autonomyLevel: assisted` e `reviewGate: human-required`.
 
-## Hooks
-
-`.claude/settings.json` liga um hook `PreToolUse` em `Bash`, filtrado por `if: "Bash(git commit *)"`, que roda `.claude/hooks/verificar-claude-md.py`.
-
-O hook roda antes do comando, então nega sempre o `git commit` precedido de `git add` na mesma chamada ou com `-a`/`--all`: o índice ainda não tem o que vai para o commit, e o `git add` precisa vir numa chamada separada.
-
-Fora desse caso, o script lê `git diff --cached`. Libera o commit quando o índice está vazio ou já contém o `CLAUDE.md`; senão nega uma vez, listando os arquivos que vão para o commit, e grava a marca do índice em `.claude/tmp/claude-md-conferido-<sessão>.txt`. A segunda tentativa com o mesmo índice passa, então o gate não entra em laço.
-
-O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura e fluxo. Não recebe motivo de mudança, comparação com o que era antes nem histórico.
-
 ## Convenções
 
 - Pacote raiz `com.william.kanban`
@@ -105,7 +97,9 @@ O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura 
 - Código em inglês: pacote, classe, método, variável, coluna, tabela, endpoint e campo de JSON
 - Campo de JSON em snake_case e campo Java em camelCase: o record leva `@JsonProperty("display_name")` onde o nome tem mais de uma palavra, e a anotação vale tanto para o Jackson 3 da aplicação quanto para o schema que o springdoc gera com Jackson 2
 - Record com anotação em algum componente, e método com anotação em algum parâmetro, abrem a lista numa linha própria, separam os itens por linha em branco, com cada anotação numa linha acima do tipo, e fecham com uma linha em branco e o `) {` sozinho na indentação da declaração; constante usada em anotação entra por import estático
+- Resposta só com links é `LinksModel`, de `com.william.kanban.shared`, e listagem é `CollectionModel<Object>`: método não devolve tipo com curinga, que o Sonar aponta pela `java:S1452`
 - Link é `Link.of` com caminho literal relativo à raiz: `WebMvcLinkBuilder` grava esquema e host no `href`. Listagem vazia passa por `EmbeddedWrappers.emptyCollectionOf`, porque `CollectionModel` sem item omite `_embedded`
 - Criação devolve `ResponseEntity.created` e mantém `@ResponseStatus(HttpStatus.CREATED)`: sem a anotação o springdoc documenta `200`. O schema do `EntityModel<XResponse>` aparece no OpenAPI como `EntityModelXResponse`
 - Controller não leva anotação de OpenAPI: o `OpenApiResponsesConfig` documenta `400` para parâmetro com `@Valid` ou `@RequestParam`, `401` para parâmetro com `@AuthenticationPrincipal` ou do tipo `Authentication`, `403` para `@PathVariable` de nome `projectId` e `404` para `@PathVariable`. Resposta que não sai da assinatura, como o `409` de `POST /accounts`, entra no `OpenApiCustomizer` da mesma classe
 - Prosa em português do Brasil, com acentuação correta: artefatos do OpenSpec, documentos do projeto, comentário e Javadoc, mensagem de commit
+- O `CLAUDE.md` descreve o estado atual: stack, comandos, convenções, estrutura e fluxo. Não recebe motivo de mudança, comparação com o que era antes nem histórico

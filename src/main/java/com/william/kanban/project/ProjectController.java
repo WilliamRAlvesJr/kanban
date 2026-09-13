@@ -1,11 +1,11 @@
 package com.william.kanban.project;
 
+import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +34,7 @@ class ProjectController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	ResponseEntity<RepresentationModel<?>> create(
+	ResponseEntity<LinksModel> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -44,12 +44,12 @@ class ProjectController {
 			CreateProjectRequest request
 
 	) {
-		RepresentationModel<?> model = assembler.selfOf(service.create(accountId, request.name(), request.description()));
+		LinksModel model = assembler.selfOf(service.create(accountId, request.name(), request.description()));
 		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
 	}
 
 	@GetMapping
-	CollectionModel<?> list(
+	CollectionModel<Object> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -75,7 +75,7 @@ class ProjectController {
 	}
 
 	@PutMapping("/{projectId}")
-	RepresentationModel<?> update(
+	LinksModel update(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -92,7 +92,7 @@ class ProjectController {
 	}
 
 	@PostMapping("/{projectId}/archive")
-	RepresentationModel<?> archive(
+	LinksModel archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -105,7 +105,7 @@ class ProjectController {
 	}
 
 	@PostMapping("/{projectId}/restore")
-	RepresentationModel<?> restore(
+	LinksModel restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,

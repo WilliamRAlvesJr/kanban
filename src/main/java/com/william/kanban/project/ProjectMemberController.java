@@ -1,10 +1,10 @@
 package com.william.kanban.project;
 
+import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -49,7 +49,7 @@ class ProjectMemberController {
 	}
 
 	@GetMapping
-	CollectionModel<?> list(
+	CollectionModel<Object> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -78,7 +78,7 @@ class ProjectMemberController {
 	}
 
 	@PutMapping("/{memberId}/permissions")
-	RepresentationModel<?> updatePermissions(
+	LinksModel updatePermissions(
 
 			@AuthenticationPrincipal
 			UUID accountId,

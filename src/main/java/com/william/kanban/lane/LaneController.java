@@ -1,11 +1,11 @@
 package com.william.kanban.lane;
 
+import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
-import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +34,7 @@ class LaneController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	ResponseEntity<RepresentationModel<?>> create(
+	ResponseEntity<LinksModel> create(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -47,7 +47,7 @@ class LaneController {
 			CreateLaneRequest request
 
 	) {
-		RepresentationModel<?> model = assembler.selfOf(service.create(boardId, accountId, request.name()));
+		LinksModel model = assembler.selfOf(service.create(boardId, accountId, request.name()));
 		return ResponseEntity.created(model.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(model);
 	}
 
@@ -68,7 +68,7 @@ class LaneController {
 	}
 
 	@PutMapping("/{laneId}")
-	RepresentationModel<?> rename(
+	LinksModel rename(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -88,7 +88,7 @@ class LaneController {
 	}
 
 	@PutMapping("/order")
-	RepresentationModel<?> reorder(
+	LinksModel reorder(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -106,7 +106,7 @@ class LaneController {
 	}
 
 	@PostMapping("/{laneId}/archive")
-	RepresentationModel<?> archive(
+	LinksModel archive(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -122,7 +122,7 @@ class LaneController {
 	}
 
 	@PostMapping("/{laneId}/restore")
-	RepresentationModel<?> restore(
+	LinksModel restore(
 
 			@AuthenticationPrincipal
 			UUID accountId,
@@ -138,7 +138,7 @@ class LaneController {
 	}
 
 	@GetMapping
-	CollectionModel<?> list(
+	CollectionModel<Object> list(
 
 			@AuthenticationPrincipal
 			UUID accountId,
