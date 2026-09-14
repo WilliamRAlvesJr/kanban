@@ -16,6 +16,10 @@ context: |
   - Cada fato aparece em um lugar só, dentro do artefato e entre artefatos. O design e o tasks não repetem o que a proposal já diz: apontam para ela.
   - O CLAUDE.md é um desses lugares: não repita no artefato stack, comando, convenção, propriedade de configuração nem estado do projeto que ele já registra.
 
+  Change de refatoração (não altera comportamento observável da aplicação):
+  - O `.openspec.yaml` da change leva `skip_specs: true`, e a change não tem spec delta.
+  - A proposal lista em Impact só arquivos e pacotes; What Changes descreve a estrutura nova do código, não comportamento da API.
+
   Diagramas:
   - Prefira diagrama Mermaid a texto sempre que o conteúdo for fluxo, sequência de chamadas, máquina de estados, modelo de dados ou relação entre componentes.
   - O diagrama substitui a prosa que o descreveria, não convive com ela. Depois do diagrama, escreva só o que ele não mostra.
@@ -53,6 +57,7 @@ rules:
     - 'O preâmbulo só funciona nessa posição: o parser descarta o que vem antes do primeiro `### Requirement:`, então ele morre no archive. Abaixo do header do requirement o archive copia verbatim para a spec publicada, e anexado ao título da seção derruba os MODIFIED em silêncio, com validate verde.'
   tasks:
     - 'Código novo entra por TDD: cada comportamento vira duas tasks, a primeira escreve o teste e confirma que ele falha, a segunda escreve o código até ele passar. Nunca um checkbox que implementa e verifica ao mesmo tempo.'
+    - 'Change de refatoração troca o par TDD por outro par: a primeira task muda o código, a segunda roda a suíte afetada e confirma que ela segue verde com o mesmo número de testes. O primeiro grupo roda o PIT antes de qualquer mudança e registra o número de mutantes mortos; o último roda o PIT de novo e confirma que o número não caiu.'
     - 'Os grupos são por comportamento observável, um por endpoint ou por regra. Migration, entidade e repositório entram no grupo do primeiro teste que precisa deles, nunca em grupo próprio.'
     - 'Task que não produz código diz isso na descrição, e diz o que já a satisfaz.'
     - 'Uma task pode trazer um bloco ```diff logo abaixo do checkbox, com a forma concreta da mudança.'
