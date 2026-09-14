@@ -2,7 +2,7 @@ package com.william.kanban.auth;
 
 import jakarta.validation.constraints.NotBlank;
 
-record LoginRequest(
+public record LoginRequest(
 
 		@NotBlank
 		String email,
