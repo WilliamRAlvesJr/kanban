@@ -1,28 +1,28 @@
 package com.william.kanban.account;
 
+import static com.william.kanban.support.ApiClient.link;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.aMapWithSize;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.OK;
 
-import com.jayway.jsonpath.JsonPath;
 import com.william.kanban.TestcontainersConfiguration;
+import com.william.kanban.auth.LoginRequest;
+import com.william.kanban.support.ApiClient;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,203 +32,220 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(TestcontainersConfiguration.class)
 class AccountApiTest {
 
+	private static final String ACCOUNTS = "/accounts";
+
+	private static final String ME = "/accounts/me";
+
+	private static final String LOGIN = "/auth/login";
+
+	private static final CreateAccountRequest ANA =
+		new CreateAccountRequest("ana@exemplo.com", "Ana", "segredo");
+
 	@Autowired
 	MockMvc mockMvc;
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 
+	ApiClient api;
+
 	@BeforeEach
-	void cleanUp() {
+	void setUp() {
+		api = new ApiClient(mockMvc);
 		jdbcTemplate.execute("delete from accounts");
 	}
 
 	@Test
-	void createsAccount() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated())
-				.andExpect(header().string(HttpHeaders.LOCATION, "/accounts/me"))
-				.andExpect(jsonPath("$", aMapWithSize(1)))
-				.andExpect(jsonPath("$._links", aMapWithSize(2)))
-				.andExpect(jsonPath("$._links.self.href").value("/accounts/me"))
-				.andExpect(jsonPath("$._links.login.href").value("/auth/login"));
+	void createsAccount() {
+		api.post(ACCOUNTS)
+			.withBody(ANA)
+			.perform()
+			.expectStatus(CREATED)
+			.expectLocation(ME)
+			.expectJson("$", aMapWithSize(1))
+			.expectLinks(
+				link("self", ME),
+				link("login", LOGIN)
+			);
 	}
 
 	@Test
-	void normalizesEmailToLowercase() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "Ana@Exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated());
+	void normalizesEmailToLowercase() {
+		api.post(ACCOUNTS)
+			.withBody(ANA.withEmail("Ana@Exemplo.com"))
+			.perform()
+			.expectStatus(CREATED);
 
-		assertThat(jdbcTemplate.queryForObject("select email from accounts", String.class))
-				.isEqualTo("ana@exemplo.com");
+		var email = jdbcTemplate.queryForObject(
+			"select email from accounts", String.class
+		);
+		assertThat(email).isEqualTo("ana@exemplo.com");
 	}
 
 	@Test
-	void storesPasswordAsBcryptHash() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated());
+	void storesPasswordAsBcryptHash() {
+		api.post(ACCOUNTS)
+			.withBody(ANA)
+			.perform()
+			.expectStatus(CREATED);
 
-		String passwordHash = jdbcTemplate.queryForObject("select password_hash from accounts", String.class);
+		var passwordHash = jdbcTemplate.queryForObject(
+			"select password_hash from accounts", String.class
+		);
 		assertThat(passwordHash).isNotEqualTo("segredo");
 		assertThat(new BCryptPasswordEncoder().matches("segredo", passwordHash)).isTrue();
 	}
 
 	@Test
-	void doesNotReturnPassword() throws Exception {
-		String id = createAna();
+	void doesNotReturnPassword() {
+		var id = createAna();
 
-		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOfAna()))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$", aMapWithSize(4)))
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.email").exists())
-				.andExpect(jsonPath("$.display_name").exists())
-				.andExpect(jsonPath("$._links").exists())
-				.andExpect(jsonPath("$.password").doesNotExist())
-				.andExpect(jsonPath("$.password_hash").doesNotExist());
+		api.get(ME)
+			.withToken(loginAsAna())
+			.perform()
+			.expectStatus(OK)
+			.expectJson("$", aMapWithSize(4))
+			.expectJson("$.id", id)
+			.expectPresent("$.email")
+			.expectPresent("$.display_name")
+			.expectPresent("$._links")
+			.expectAbsent("$.password")
+			.expectAbsent("$.password_hash");
 	}
 
 	@Test
-	void returnsAccountOfTokenWithLinks() throws Exception {
-		String id = createAna();
+	void returnsAccountOfTokenWithLinks() {
+		var id = createAna();
 
-		mockMvc.perform(get("/accounts/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenOfAna()))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(id))
-				.andExpect(jsonPath("$.email").value("ana@exemplo.com"))
-				.andExpect(jsonPath("$.display_name").value("Ana"))
-				.andExpect(jsonPath("$._links", aMapWithSize(2)))
-				.andExpect(jsonPath("$._links.self.href").value("/accounts/me"))
-				.andExpect(jsonPath("$._links.projects.href").value("/projects"));
+		api.get(ME)
+			.withToken(loginAsAna())
+			.perform()
+			.expectStatus(OK)
+			.expectJson("$.id", id)
+			.expectJson("$.email", "ana@exemplo.com")
+			.expectJson("$.display_name", "Ana")
+			.expectLinks(
+				link("self", ME),
+				link("projects", "/projects")
+			);
 	}
 
 	@Test
 	void databaseRejectsEmailNotNormalized() {
-		UUID id = UUID.randomUUID();
+		var id = UUID.randomUUID();
 
 		assertThatThrownBy(() -> jdbcTemplate.update(
-				"insert into accounts (id, email, display_name, password_hash) values (?, ?, ?, ?)",
-				id, "Ana@Exemplo.com", "Ana", "hash"))
-				.isInstanceOf(DataIntegrityViolationException.class);
+			"""
+				insert into accounts (id, email, display_name, password_hash)
+				values (?, ?, ?, ?)
+			""",
+			id, "Ana@Exemplo.com", "Ana", "hash"
+		))
+			.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	static Stream<CreateAccountRequest> incompleteAccounts() {
+		return Stream.of(
+			ANA.withEmail(null),
+			ANA.withDisplayName(null),
+			ANA.withPassword(null),
+			ANA.withEmail(""),
+			ANA.withDisplayName(""),
+			ANA.withPassword("")
+		);
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {
-			"""
-					{"display_name": "Ana", "password": "segredo"}""",
-			"""
-					{"email": "ana@exemplo.com", "password": "segredo"}""",
-			"""
-					{"email": "ana@exemplo.com", "display_name": "Ana"}""",
-			"""
-					{"email": "", "display_name": "Ana", "password": "segredo"}""",
-			"""
-					{"email": "ana@exemplo.com", "display_name": "", "password": "segredo"}""",
-			"""
-					{"email": "ana@exemplo.com", "display_name": "Ana", "password": ""}"""
-	})
-	void rejectsPayloadWithRequiredFieldMissingOrBlank(String body) throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
-				.andExpect(status().isBadRequest());
+	@MethodSource("incompleteAccounts")
+	void rejectsPayloadWithRequiredFieldMissingOrBlank(CreateAccountRequest body) {
+		api.post(ACCOUNTS)
+			.withBody(body)
+			.perform()
+			.expectStatus(BAD_REQUEST);
 
 		assertThat(countAccounts()).isZero();
 	}
 
 	@Test
-	void rejectsInvalidEmail() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana.exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isBadRequest());
+	void rejectsInvalidEmail() {
+		api.post(ACCOUNTS)
+			.withBody(ANA.withEmail("ana.exemplo.com"))
+			.perform()
+			.expectStatus(BAD_REQUEST);
 
 		assertThat(countAccounts()).isZero();
 	}
 
 	@Test
-	void rejectsDuplicateEmail() throws Exception {
+	void rejectsDuplicateEmail() {
 		createAna();
 
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "display_name": "Outra Ana", "password": "outra"}
-								"""))
-				.andExpect(status().isConflict());
+		api.post(ACCOUNTS)
+			.withBody(ANA.withDisplayName("Outra Ana").withPassword("outra"))
+			.perform()
+			.expectStatus(CONFLICT);
 
 		assertThat(countAccounts()).isOne();
 	}
 
 	@Test
-	void rejectsDuplicateEmailInAnotherCase() throws Exception {
+	void rejectsDuplicateEmailInAnotherCase() {
 		createAna();
 
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ANA@exemplo.com", "display_name": "Outra Ana", "password": "outra"}
-								"""))
-				.andExpect(status().isConflict());
+		api.post(ACCOUNTS)
+			.withBody(ANA
+				.withEmail("ANA@exemplo.com")
+				.withDisplayName("Outra Ana")
+				.withPassword("outra")
+			)
+			.perform()
+			.expectStatus(CONFLICT);
 
 		assertThat(countAccounts()).isOne();
 	}
 
 	@Test
-	void documentsAccountEndpoints() throws Exception {
-		mockMvc.perform(get("/v3/api-docs"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.paths['/accounts'].post.responses.201").exists())
-				.andExpect(jsonPath("$.paths['/accounts'].post.responses.400").exists())
-				.andExpect(jsonPath("$.paths['/accounts'].post.responses.409").exists())
-				.andExpect(jsonPath("$.paths['/accounts'].post.responses.200").doesNotExist())
-				.andExpect(jsonPath("$.paths['/accounts/{id}']").doesNotExist())
-				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.200").exists())
-				.andExpect(jsonPath("$.paths['/accounts/me'].get.responses.401").exists())
-				.andExpect(jsonPath("$.components.schemas.CreateAccountRequest.properties.display_name").exists())
-				.andExpect(jsonPath("$.components.schemas.EntityModelAccountResponse.properties.display_name").exists());
+	void documentsAccountEndpoints() {
+		api.get("/v3/api-docs")
+			.perform()
+			.expectStatus(OK)
+			.expectPresent("$.paths['/accounts'].post.responses.201")
+			.expectPresent("$.paths['/accounts'].post.responses.400")
+			.expectPresent("$.paths['/accounts'].post.responses.409")
+			.expectAbsent("$.paths['/accounts'].post.responses.200")
+			.expectAbsent("$.paths['/accounts/{id}']")
+			.expectPresent("$.paths['/accounts/me'].get.responses.200")
+			.expectPresent("$.paths['/accounts/me'].get.responses.401")
+			.expectPresent(
+				"$.components.schemas.CreateAccountRequest.properties.display_name"
+			)
+			.expectPresent(
+				"$.components.schemas.EntityModelAccountResponse.properties.display_name"
+			);
 	}
 
-	private String createAna() throws Exception {
-		mockMvc.perform(post("/accounts")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "display_name": "Ana", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated());
+	private String createAna() {
+		api.post(ACCOUNTS)
+			.withBody(ANA)
+			.perform()
+			.expectStatus(CREATED);
 		return jdbcTemplate.queryForObject(
-				"select id from accounts where email = ?", UUID.class, "ana@exemplo.com").toString();
+			"select id from accounts where email = ?", UUID.class, "ana@exemplo.com"
+		).toString();
 	}
 
-	private String tokenOfAna() throws Exception {
-		String body = mockMvc.perform(post("/auth/login")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{"email": "ana@exemplo.com", "password": "segredo"}
-								"""))
-				.andExpect(status().isCreated())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
-		return JsonPath.read(body, "$.token");
+	private String loginAsAna() {
+		return api.post(LOGIN)
+			.withBody(new LoginRequest("ana@exemplo.com", "segredo"))
+			.perform()
+			.expectStatus(CREATED)
+			.json("$.token");
 	}
 
 	private Integer countAccounts() {
-		return jdbcTemplate.queryForObject("select count(*) from accounts", Integer.class);
+		return jdbcTemplate.queryForObject(
+			"select count(*) from accounts", Integer.class
+		);
 	}
 
 }

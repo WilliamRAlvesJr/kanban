@@ -1,9 +1,15 @@
 package com.william.kanban.account;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import lombok.With;
 
+@With
+@JsonInclude(NON_NULL)
 record CreateAccountRequest(
 
 		@NotBlank

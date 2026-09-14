@@ -168,6 +168,7 @@ importa cobertura, que fica só no JaCoCo.
 - `spring-boot-starter-validation` e `spring-boot-starter-security`, este pelo
   `BCryptPasswordEncoder` e pela cadeia de filtros que resolve o token
 - Testes com `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` e Testcontainers
+- Lombok opcional, pelo `@With` dos records de requisição que os testes reaproveitam
 - Cobertura com `jacoco-maven-plugin` 0.8.13
 - Análise estática com SonarQube Cloud, na análise automática
 
@@ -199,6 +200,7 @@ src/test/java/com/william/kanban/
   board/BoardApiTest              endpoints de quadro, de ponta a ponta
   shared/GlobalExceptionHandlerTest   tradução das exceções, sem contexto Spring
   shared/OpenApiResponsesConfigTest   regras de documentação do OpenAPI, sem contexto Spring
+  support/ApiClient               envia a requisição do teste de API e confere a resposta
 ```
 
 ## Fluxo de mudanças
