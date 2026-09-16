@@ -36,6 +36,7 @@ build/
 
 ### Temporarios do Claude Code ###
 .claude/tmp/
+.claude/worktrees/
 
 ### Roteiros de video-aula (material local) ###
 roteiros/
