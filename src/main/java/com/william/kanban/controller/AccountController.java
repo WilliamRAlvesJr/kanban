@@ -1,5 +1,8 @@
-package com.william.kanban.account;
+package com.william.kanban.controller;
 
+import com.william.kanban.dto.account.AccountResponse;
+import com.william.kanban.dto.account.CreateAccountRequest;
+import com.william.kanban.service.AccountService;
 import com.william.kanban.shared.LinksModel;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -37,9 +40,9 @@ class AccountController {
 			CreateAccountRequest request
 
 	) {
-		service.create(request.email(), request.displayName(), request.password());
+		service.create(request);
 		return ResponseEntity.created(URI.create(ME))
-				.body(new LinksModel(Link.of(ME), Link.of("/auth/login", "login")));
+			.body(new LinksModel(Link.of(ME), Link.of("/auth/login", "login")));
 	}
 
 	@GetMapping("/me")
@@ -49,9 +52,11 @@ class AccountController {
 			UUID accountId
 
 	) {
-		Account account = service.findById(accountId);
-		return EntityModel.of(new AccountResponse(account.getId(), account.getEmail(), account.getDisplayName()),
-				Link.of(ME), Link.of("/projects", "projects"));
+		return EntityModel.of(
+			service.findById(accountId),
+			Link.of(ME),
+			Link.of("/projects", "projects")
+		);
 	}
 
 }

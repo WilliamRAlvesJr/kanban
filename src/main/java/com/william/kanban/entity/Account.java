@@ -1,4 +1,4 @@
-package com.william.kanban.account;
+package com.william.kanban.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,7 +11,7 @@ import org.hibernate.generator.EventType;
 
 @Entity
 @Table(name = "accounts")
-class Account {
+public class Account {
 
 	@Id
 	private UUID id;
@@ -29,26 +29,26 @@ class Account {
 	protected Account() {
 	}
 
-	Account(String email, String displayName, String passwordHash) {
+	public Account(String email, String displayName, String passwordHash) {
 		this.id = UUID.randomUUID();
 		this.email = email;
 		this.displayName = displayName;
 		this.passwordHash = passwordHash;
 	}
 
-	UUID getId() {
+	public UUID getId() {
 		return id;
 	}
 
-	String getEmail() {
+	public String getEmail() {
 		return email;
 	}
 
-	String getDisplayName() {
+	public String getDisplayName() {
 		return displayName;
 	}
 
-	String getPasswordHash() {
+	public String getPasswordHash() {
 		return passwordHash;
 	}
 

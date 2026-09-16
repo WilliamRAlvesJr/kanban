@@ -1,9 +1,9 @@
-package com.william.kanban.account;
+package com.william.kanban.dto.account;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.UUID;
 
-record AccountResponse(
+public record AccountResponse(
 
 		UUID id,
 

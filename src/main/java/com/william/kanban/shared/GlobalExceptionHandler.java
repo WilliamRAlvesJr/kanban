@@ -1,8 +1,8 @@
 package com.william.kanban.shared;
 
-import com.william.kanban.account.AccountNotFoundException;
 import com.william.kanban.auth.InvalidCredentialsException;
 import com.william.kanban.board.BoardNotFoundException;
+import com.william.kanban.exception.AccountNotFoundException;
 import com.william.kanban.lane.LaneNotFoundException;
 import com.william.kanban.lane.LaneOrderMismatchException;
 import com.william.kanban.project.ProjectAccessDeniedException;

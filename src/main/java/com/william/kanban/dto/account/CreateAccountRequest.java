@@ -1,4 +1,4 @@
-package com.william.kanban.account;
+package com.william.kanban.dto.account;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
@@ -10,7 +10,7 @@ import lombok.With;
 
 @With
 @JsonInclude(NON_NULL)
-record CreateAccountRequest(
+public record CreateAccountRequest(
 
 		@NotBlank
 		@Email

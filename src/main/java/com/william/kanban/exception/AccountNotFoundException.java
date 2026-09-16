@@ -1,10 +1,10 @@
-package com.william.kanban.account;
+package com.william.kanban.exception;
 
 import java.util.UUID;
 
 public class AccountNotFoundException extends RuntimeException {
 
-	AccountNotFoundException(UUID id) {
+	public AccountNotFoundException(UUID id) {
 		super("Conta não encontrada: " + id);
 	}
 

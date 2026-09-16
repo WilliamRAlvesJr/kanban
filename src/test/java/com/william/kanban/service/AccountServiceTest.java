@@ -1,11 +1,13 @@
-package com.william.kanban.account;
+package com.william.kanban.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.william.kanban.TestcontainersConfiguration;
+import com.william.kanban.exception.AccountNotFoundException;
+import com.william.kanban.mapper.AccountMapper;
+import com.william.kanban.repository.AccountRepository;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,20 +26,23 @@ class AccountServiceTest {
 	@Autowired
 	AccountRepository repository;
 
+	@Autowired
+	AccountMapper mapper;
+
 	@Test
 	void findByIdRejectsUnknownId() {
-		UUID id = UUID.randomUUID();
+		var id = UUID.randomUUID();
 
 		assertThatThrownBy(() -> service.findById(id))
-				.isInstanceOf(AccountNotFoundException.class)
-				.hasMessageContaining(id.toString());
+			.isInstanceOf(AccountNotFoundException.class)
+			.hasMessageContaining(id.toString());
 	}
 
 	@Test
 	void unknownEmailComparesPasswordAgainstHashOfEncoderCost() {
-		BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder(4);
-		List<String> comparedHashes = new ArrayList<>();
-		PasswordEncoder encoder = new PasswordEncoder() {
+		var bcrypt = new BCryptPasswordEncoder(4);
+		var comparedHashes = new ArrayList<String>();
+		var encoder = new PasswordEncoder() {
 
 			@Override
 			public String encode(CharSequence rawPassword) {
@@ -52,7 +57,8 @@ class AccountServiceTest {
 
 		};
 
-		new AccountService(repository, encoder).authenticate("ninguem@exemplo.com", "segredo");
+		new AccountService(repository, encoder, mapper)
+			.authenticate("ninguem@exemplo.com", "segredo");
 
 		assertThat(comparedHashes).singleElement().asString().startsWith("$2a$04$");
 	}
