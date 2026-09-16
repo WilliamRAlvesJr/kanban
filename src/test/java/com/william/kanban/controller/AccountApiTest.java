@@ -1,8 +1,7 @@
-package com.william.kanban.account;
+package com.william.kanban.controller;
 
 import static com.william.kanban.support.ApiClient.link;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -11,6 +10,7 @@ import static org.springframework.http.HttpStatus.OK;
 
 import com.william.kanban.TestcontainersConfiguration;
 import com.william.kanban.auth.LoginRequest;
+import com.william.kanban.dto.account.CreateAccountRequest;
 import com.william.kanban.support.ApiClient;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -128,20 +127,6 @@ class AccountApiTest {
 				link("self", ME),
 				link("projects", "/projects")
 			);
-	}
-
-	@Test
-	void databaseRejectsEmailNotNormalized() {
-		var id = UUID.randomUUID();
-
-		assertThatThrownBy(() -> jdbcTemplate.update(
-			"""
-				insert into accounts (id, email, display_name, password_hash)
-				values (?, ?, ?, ?)
-			""",
-			id, "Ana@Exemplo.com", "Ana", "hash"
-		))
-			.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	static Stream<CreateAccountRequest> incompleteAccounts() {

@@ -1,4 +1,4 @@
-package com.william.kanban.account;
+package com.william.kanban.dto.account;
 
 import java.util.UUID;
 

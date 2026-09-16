@@ -1,7 +1,7 @@
 package com.william.kanban.project;
 
-import com.william.kanban.account.AccountService;
-import com.william.kanban.account.AccountSummary;
+import com.william.kanban.dto.account.AccountSummary;
+import com.william.kanban.service.AccountService;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Collection;

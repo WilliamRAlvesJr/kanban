@@ -1,6 +1,6 @@
 package com.william.kanban.auth;
 
-import com.william.kanban.account.AccountService;
+import com.william.kanban.service.AccountService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

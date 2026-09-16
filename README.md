@@ -129,8 +129,11 @@ bytecode (remove condicional, troca o retorno por `null` ou por objeto vazio) e 
 que segue verde. O conjunto de mutadores é o `STRONGER`, mais agressivo que o padrão.
 
 ```bash
-./mvnw test-compile org.pitest:pitest-maven:mutationCoverage
+./mvnw clean test-compile org.pitest:pitest-maven:mutationCoverage
 ```
+
+O `clean` descarta as classes que o VS Code compila em `target/classes` com o compilador do
+Eclipse, que geram outro conjunto de mutantes.
 
 Não roda junto de `test`: a análise reexecuta a suíte por mutante e leva cerca de vinte minutos. O relatório fica em `target/pit-reports/index.html`, com cada
 mutante listado sobre a linha que o originou. O build é reprovado abaixo de **80%** de mutantes
@@ -170,6 +173,7 @@ importa cobertura, que fica só no JaCoCo.
 - Testes com `spring-boot-starter-test`, `spring-boot-starter-webmvc-test` e Testcontainers
 - Lombok opcional, pelo `@With` dos records de requisição que os testes reaproveitam
 - Cobertura com `jacoco-maven-plugin` 0.8.13
+- Regras de dependência entre camadas com `archunit-junit5` 1.5.0
 - Análise estática com SonarQube Cloud, na análise automática
 
 A linha 3.x do springdoc é a compatível com Spring Boot 4; a 2.x atende o Boot 3.
@@ -182,7 +186,13 @@ sozinho não migra nada sem `org.springframework.boot:spring-boot-flyway`.
 ```
 src/main/java/com/william/kanban/
   KanbanApplication.java          ponto de entrada
-  account/                        entidade, repositório, serviço, controller e records de JSON
+  controller/AccountController    endpoints de conta
+  service/AccountService          cadastro, consulta e autenticação de conta
+  mapper/AccountMapper            conversão entre Account e os records de dto/account
+  repository/AccountRepository    acesso à tabela accounts
+  entity/Account                  entidade JPA da conta
+  dto/account/                    records de JSON e resumo da conta
+  exception/                      AccountNotFoundException
   auth/                           token, login, logout, filtro Bearer e cadeia de filtros
   board/                          entidade, repositório, serviço, controller e records de JSON
   shared/GlobalExceptionHandler   traduz as exceções em ProblemDetail
@@ -193,8 +203,10 @@ src/main/resources/
 src/test/java/com/william/kanban/
   TestcontainersConfiguration     Postgres em container para os testes
   KanbanApplicationTests          carga do contexto
-  account/AccountApiTest          endpoints de conta, de ponta a ponta
-  account/AccountServiceTest      consulta por id fora da API
+  ArchitectureTest                regras de dependência entre camadas
+  controller/AccountApiTest       endpoints de conta, de ponta a ponta
+  service/AccountServiceTest      consulta por id fora da API
+  schema/AccountsTableTest        restrições da tabela accounts
   auth/AuthApiTest                login, logout e requisição autenticada
   auth/SecurityConfigTest         cadeia de filtros e encoder, com o contexto recriado a cada teste
   board/BoardApiTest              endpoints de quadro, de ponta a ponta
