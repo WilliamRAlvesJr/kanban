@@ -54,9 +54,13 @@ public final class ApiClient {
 			this.builder = builder;
 		}
 
-		public Request withToken(String token) {
-			builder.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+		public Request withHeader(String name, String value) {
+			builder.header(name, value);
 			return this;
+		}
+
+		public Request withToken(String token) {
+			return withHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
 		}
 
 		public Request withBody(Object body) {
@@ -92,6 +96,10 @@ public final class ApiClient {
 			return expect(header().string(HttpHeaders.LOCATION, path));
 		}
 
+		public Response expectNoLocation() {
+			return expect(header().doesNotExist(HttpHeaders.LOCATION));
+		}
+
 		public Response expectLinks(Link... links) {
 			expect(jsonPath("$._links", aMapWithSize(links.length)));
 			for (var link : links) {
@@ -117,13 +125,16 @@ public final class ApiClient {
 			return expect(jsonPath(path).doesNotExist());
 		}
 
-		public <T> T json(String path) {
+		public String body() {
 			try {
-				var body = actions.andReturn().getResponse().getContentAsString();
-				return JsonPath.read(body, path);
+				return actions.andReturn().getResponse().getContentAsString();
 			} catch (UnsupportedEncodingException e) {
 				throw new IllegalStateException(e);
 			}
+		}
+
+		public <T> T json(String path) {
+			return JsonPath.read(body(), path);
 		}
 
 		private Response expect(ResultMatcher matcher) {
