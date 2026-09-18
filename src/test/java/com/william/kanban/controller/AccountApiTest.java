@@ -1,6 +1,11 @@
 package com.william.kanban.controller;
 
+import static com.william.kanban.support.AccountFixture.ANA;
+import static com.william.kanban.support.AccountFixture.ANA_LOGIN;
 import static com.william.kanban.support.ApiClient.link;
+import static com.william.kanban.support.ApiPaths.ACCOUNTS;
+import static com.william.kanban.support.ApiPaths.LOGIN;
+import static com.william.kanban.support.ApiPaths.ME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -9,10 +14,10 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.william.kanban.TestcontainersConfiguration;
-import com.william.kanban.auth.LoginRequest;
 import com.william.kanban.dto.account.CreateAccountRequest;
+import com.william.kanban.support.AccountFixture;
 import com.william.kanban.support.ApiClient;
-import java.util.UUID;
+import com.william.kanban.support.TableRows;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,15 +36,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(TestcontainersConfiguration.class)
 class AccountApiTest {
 
-	private static final String ACCOUNTS = "/accounts";
-
-	private static final String ME = "/accounts/me";
-
-	private static final String LOGIN = "/auth/login";
-
-	private static final CreateAccountRequest ANA =
-		new CreateAccountRequest("ana@exemplo.com", "Ana", "segredo");
-
 	@Autowired
 	MockMvc mockMvc;
 
@@ -48,9 +44,15 @@ class AccountApiTest {
 
 	ApiClient api;
 
+	AccountFixture accounts;
+
+	TableRows rows;
+
 	@BeforeEach
 	void setUp() {
 		api = new ApiClient(mockMvc);
+		accounts = new AccountFixture(api, jdbcTemplate);
+		rows = new TableRows(jdbcTemplate);
 		jdbcTemplate.execute("delete from accounts");
 	}
 
@@ -97,10 +99,10 @@ class AccountApiTest {
 
 	@Test
 	void doesNotReturnPassword() {
-		var id = createAna();
+		var id = accounts.createAna();
 
 		api.get(ME)
-			.withToken(loginAsAna())
+			.withToken(accounts.tokenOf(ANA_LOGIN))
 			.perform()
 			.expectStatus(OK)
 			.expectJson("$", aMapWithSize(4))
@@ -114,10 +116,10 @@ class AccountApiTest {
 
 	@Test
 	void returnsAccountOfTokenWithLinks() {
-		var id = createAna();
+		var id = accounts.createAna();
 
 		api.get(ME)
-			.withToken(loginAsAna())
+			.withToken(accounts.tokenOf(ANA_LOGIN))
 			.perform()
 			.expectStatus(OK)
 			.expectJson("$.id", id)
@@ -148,7 +150,7 @@ class AccountApiTest {
 			.perform()
 			.expectStatus(BAD_REQUEST);
 
-		assertThat(countAccounts()).isZero();
+		assertThat(rows.count("accounts")).isZero();
 	}
 
 	@Test
@@ -158,24 +160,24 @@ class AccountApiTest {
 			.perform()
 			.expectStatus(BAD_REQUEST);
 
-		assertThat(countAccounts()).isZero();
+		assertThat(rows.count("accounts")).isZero();
 	}
 
 	@Test
 	void rejectsDuplicateEmail() {
-		createAna();
+		accounts.createAna();
 
 		api.post(ACCOUNTS)
 			.withBody(ANA.withDisplayName("Outra Ana").withPassword("outra"))
 			.perform()
 			.expectStatus(CONFLICT);
 
-		assertThat(countAccounts()).isOne();
+		assertThat(rows.count("accounts")).isOne();
 	}
 
 	@Test
 	void rejectsDuplicateEmailInAnotherCase() {
-		createAna();
+		accounts.createAna();
 
 		api.post(ACCOUNTS)
 			.withBody(ANA
@@ -186,7 +188,7 @@ class AccountApiTest {
 			.perform()
 			.expectStatus(CONFLICT);
 
-		assertThat(countAccounts()).isOne();
+		assertThat(rows.count("accounts")).isOne();
 	}
 
 	@Test
@@ -207,30 +209,6 @@ class AccountApiTest {
 			.expectPresent(
 				"$.components.schemas.EntityModelAccountResponse.properties.display_name"
 			);
-	}
-
-	private String createAna() {
-		api.post(ACCOUNTS)
-			.withBody(ANA)
-			.perform()
-			.expectStatus(CREATED);
-		return jdbcTemplate.queryForObject(
-			"select id from accounts where email = ?", UUID.class, "ana@exemplo.com"
-		).toString();
-	}
-
-	private String loginAsAna() {
-		return api.post(LOGIN)
-			.withBody(new LoginRequest("ana@exemplo.com", "segredo"))
-			.perform()
-			.expectStatus(CREATED)
-			.json("$.token");
-	}
-
-	private Integer countAccounts() {
-		return jdbcTemplate.queryForObject(
-			"select count(*) from accounts", Integer.class
-		);
 	}
 
 }

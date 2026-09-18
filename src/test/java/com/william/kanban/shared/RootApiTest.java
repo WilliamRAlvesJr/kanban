@@ -1,14 +1,13 @@
 package com.william.kanban.shared;
 
+import static com.william.kanban.support.AccountFixture.ANA_LOGIN;
 import static com.william.kanban.support.ApiClient.link;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
-import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.william.kanban.TestcontainersConfiguration;
-import com.william.kanban.auth.LoginRequest;
-import com.william.kanban.dto.account.CreateAccountRequest;
+import com.william.kanban.support.AccountFixture;
 import com.william.kanban.support.ApiClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,9 +33,12 @@ class RootApiTest {
 
 	ApiClient api;
 
+	AccountFixture accounts;
+
 	@BeforeEach
 	void setUp() {
 		api = new ApiClient(mockMvc);
+		accounts = new AccountFixture(api, jdbcTemplate);
 		jdbcTemplate.execute("delete from accounts");
 	}
 
@@ -47,8 +49,10 @@ class RootApiTest {
 
 	@Test
 	void linksAuthenticatedEntryPoint() {
+		accounts.createAna();
+
 		api.get("/")
-			.withToken(tokenOfAna())
+			.withToken(accounts.tokenOf(ANA_LOGIN))
 			.perform()
 			.expectStatus(OK)
 			.expectJson("$", aMapWithSize(1))
@@ -75,7 +79,8 @@ class RootApiTest {
 
 	@Test
 	void linksEntryPointAsAnonymousForExpiredToken() {
-		var token = tokenOfAna();
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 		jdbcTemplate.update(
 			"update auth_tokens set expires_at = now() - interval '1 minute'"
 		);
@@ -106,18 +111,6 @@ class RootApiTest {
 				link("login", "/auth/login"),
 				link("create-account", "/accounts")
 			);
-	}
-
-	private String tokenOfAna() {
-		api.post("/accounts")
-			.withBody(new CreateAccountRequest("ana@exemplo.com", "Ana", "segredo"))
-			.perform()
-			.expectStatus(CREATED);
-		return api.post("/auth/login")
-			.withBody(new LoginRequest("ana@exemplo.com", "segredo"))
-			.perform()
-			.expectStatus(CREATED)
-			.json("$.token");
 	}
 
 }

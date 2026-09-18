@@ -1,6 +1,11 @@
 package com.william.kanban.auth;
 
+import static com.william.kanban.support.AccountFixture.ANA;
+import static com.william.kanban.support.AccountFixture.ANA_LOGIN;
 import static com.william.kanban.support.ApiClient.link;
+import static com.william.kanban.support.ApiPaths.LOGIN;
+import static com.william.kanban.support.ApiPaths.LOGOUT;
+import static com.william.kanban.support.ApiPaths.ME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.not;
@@ -12,9 +17,9 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import com.william.kanban.TestcontainersConfiguration;
-import com.william.kanban.dto.account.CreateAccountRequest;
+import com.william.kanban.support.AccountFixture;
 import com.william.kanban.support.ApiClient;
-import java.util.UUID;
+import com.william.kanban.support.TableRows;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,20 +37,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(TestcontainersConfiguration.class)
 class AuthApiTest {
 
-	private static final String LOGIN = "/auth/login";
-
-	private static final String LOGOUT = "/auth/logout";
-
-	private static final String ME = "/accounts/me";
-
-	private static final String ACCOUNTS = "/accounts";
-
-	private static final CreateAccountRequest ANA =
-		new CreateAccountRequest("ana@exemplo.com", "Ana", "segredo");
-
-	private static final LoginRequest ANA_LOGIN =
-		new LoginRequest("ana@exemplo.com", "segredo");
-
 	@Autowired
 	MockMvc mockMvc;
 
@@ -54,15 +45,21 @@ class AuthApiTest {
 
 	ApiClient api;
 
+	AccountFixture accounts;
+
+	TableRows rows;
+
 	@BeforeEach
 	void setUp() {
 		api = new ApiClient(mockMvc);
+		accounts = new AccountFixture(api, jdbcTemplate);
+		rows = new TableRows(jdbcTemplate);
 		jdbcTemplate.execute("delete from accounts");
 	}
 
 	@Test
 	void issuesTokenForCorrectCredentials() {
-		createAna();
+		accounts.createAna();
 
 		api.post(LOGIN)
 			.withBody(ANA_LOGIN)
@@ -80,7 +77,7 @@ class AuthApiTest {
 
 	@Test
 	void issuesTokenForEmailInAnotherCase() {
-		createAna();
+		accounts.createAna();
 
 		api.post(LOGIN)
 			.withBody(ANA_LOGIN.withEmail("ANA@Exemplo.com"))
@@ -102,31 +99,31 @@ class AuthApiTest {
 	@ParameterizedTest
 	@MethodSource("incompleteLogins")
 	void rejectsPayloadWithRequiredFieldMissingOrBlank(LoginRequest body) {
-		createAna();
+		accounts.createAna();
 
 		api.post(LOGIN)
 			.withBody(body)
 			.perform()
 			.expectStatus(BAD_REQUEST);
 
-		assertThat(countTokens()).isZero();
+		assertThat(rows.count("auth_tokens")).isZero();
 	}
 
 	@Test
 	void rejectsWrongPassword() {
-		createAna();
+		accounts.createAna();
 
 		api.post(LOGIN)
 			.withBody(ANA_LOGIN.withPassword("errada"))
 			.perform()
 			.expectStatus(UNAUTHORIZED);
 
-		assertThat(countTokens()).isZero();
+		assertThat(rows.count("auth_tokens")).isZero();
 	}
 
 	@Test
 	void answersUnknownEmailWithTheSameBodyAsWrongPassword() {
-		createAna();
+		accounts.createAna();
 
 		var wrongPassword = api.post(LOGIN)
 			.withBody(ANA_LOGIN.withPassword("errada"))
@@ -140,14 +137,14 @@ class AuthApiTest {
 			.body();
 
 		assertThat(unknownEmail).isEqualTo(wrongPassword);
-		assertThat(countTokens()).isZero();
+		assertThat(rows.count("auth_tokens")).isZero();
 	}
 
 	@Test
 	void issuesIndependentTokenOnEachLogin() {
-		createAna();
-		var first = tokenOf(ANA_LOGIN);
-		var second = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var first = accounts.tokenOf(ANA_LOGIN);
+		var second = accounts.tokenOf(ANA_LOGIN);
 
 		assertThat(second).isNotEqualTo(first);
 		api.get(ME)
@@ -158,8 +155,8 @@ class AuthApiTest {
 
 	@Test
 	void storesOnlyTheHashOfTheToken() {
-		createAna();
-		var token = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 
 		var tokenHash = jdbcTemplate.queryForObject(
 			"select token_hash from auth_tokens", String.class
@@ -175,8 +172,8 @@ class AuthApiTest {
 
 	@Test
 	void acceptsValidToken() {
-		var id = createAna();
-		var token = tokenOf(ANA_LOGIN);
+		var id = accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 
 		api.get(ME)
 			.withToken(token)
@@ -188,13 +185,13 @@ class AuthApiTest {
 
 	@Test
 	void returnsTheAccountOfTheTokenUsed() {
-		createAna();
-		var brunoId = createAccount(ANA
+		accounts.createAna();
+		var brunoId = accounts.createAccount(ANA
 			.withEmail("bruno@exemplo.com")
 			.withDisplayName("Bruno")
 			.withPassword("outra")
 		);
-		var brunoToken = tokenOf(ANA_LOGIN
+		var brunoToken = accounts.tokenOf(ANA_LOGIN
 			.withEmail("bruno@exemplo.com")
 			.withPassword("outra")
 		);
@@ -209,8 +206,8 @@ class AuthApiTest {
 
 	@Test
 	void acceptsTokenIssuedAnHourAgo() {
-		createAna();
-		var token = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 		jdbcTemplate.update(
 			"update auth_tokens set created_at = now() - interval '1 hour',"
 				+ " expires_at = expires_at - interval '1 hour'"
@@ -243,8 +240,8 @@ class AuthApiTest {
 
 	@Test
 	void rejectsValidTokenUnderAnotherScheme() {
-		createAna();
-		var token = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 
 		api.get(ME)
 			.withHeader(AUTHORIZATION, "Digest " + token)
@@ -264,8 +261,8 @@ class AuthApiTest {
 
 	@Test
 	void rejectsExpiredToken() {
-		createAna();
-		var token = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 		jdbcTemplate.update(
 			"update auth_tokens set expires_at = now() - interval '1 minute'"
 		);
@@ -278,8 +275,8 @@ class AuthApiTest {
 
 	@Test
 	void logoutRevokesTheTokenUsed() {
-		createAna();
-		var token = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var token = accounts.tokenOf(ANA_LOGIN);
 
 		api.post(LOGOUT)
 			.withToken(token)
@@ -293,9 +290,9 @@ class AuthApiTest {
 
 	@Test
 	void logoutKeepsTheOtherTokens() {
-		createAna();
-		var first = tokenOf(ANA_LOGIN);
-		var second = tokenOf(ANA_LOGIN);
+		accounts.createAna();
+		var first = accounts.tokenOf(ANA_LOGIN);
+		var second = accounts.tokenOf(ANA_LOGIN);
 
 		api.post(LOGOUT)
 			.withToken(first)
@@ -333,34 +330,6 @@ class AuthApiTest {
 			.expectPresent(
 				"$.components.schemas.EntityModelLoginResponse.properties.expires_at"
 			);
-	}
-
-	private String createAccount(CreateAccountRequest account) {
-		api.post(ACCOUNTS)
-			.withBody(account)
-			.perform()
-			.expectStatus(CREATED);
-		return jdbcTemplate.queryForObject(
-			"select id from accounts where email = ?", UUID.class, account.email()
-		).toString();
-	}
-
-	private String createAna() {
-		return createAccount(ANA);
-	}
-
-	private String tokenOf(LoginRequest login) {
-		return api.post(LOGIN)
-			.withBody(login)
-			.perform()
-			.expectStatus(CREATED)
-			.json("$.token");
-	}
-
-	private Integer countTokens() {
-		return jdbcTemplate.queryForObject(
-			"select count(*) from auth_tokens", Integer.class
-		);
 	}
 
 }
