@@ -192,8 +192,13 @@ src/main/java/com/william/kanban/
   repository/AccountRepository    acesso à tabela accounts
   entity/Account                  entidade JPA da conta
   dto/account/                    records de JSON e resumo da conta
-  exception/                      AccountNotFoundException
-  auth/                           token, login, logout, filtro Bearer e cadeia de filtros
+  exception/                      AccountNotFoundException e InvalidCredentialsException
+  controller/AuthController       login e logout
+  service/AuthService             emissão, resolução e revogação de token
+  repository/AuthTokenRepository  acesso à tabela auth_tokens
+  entity/AuthToken                entidade JPA do token
+  dto/auth/                       records de JSON do login
+  security/                       filtro Bearer, cadeia de filtros e esquema do OpenAPI
   board/                          entidade, repositório, serviço, controller e records de JSON
   shared/GlobalExceptionHandler   traduz as exceções em ProblemDetail
   shared/OpenApiResponsesConfig   documenta as respostas de erro a partir da assinatura
@@ -207,8 +212,8 @@ src/test/java/com/william/kanban/
   controller/AccountApiTest       endpoints de conta, de ponta a ponta
   service/AccountServiceTest      consulta por id fora da API
   schema/AccountsTableTest        restrições da tabela accounts
-  auth/AuthApiTest                login, logout e requisição autenticada
-  auth/SecurityConfigTest         cadeia de filtros e encoder, com o contexto recriado a cada teste
+  controller/AuthApiTest          login, logout e requisição autenticada
+  security/SecurityConfigTest     cadeia de filtros e encoder, com o contexto recriado a cada teste
   board/BoardApiTest              endpoints de quadro, de ponta a ponta
   shared/GlobalExceptionHandlerTest   tradução das exceções, sem contexto Spring
   shared/OpenApiResponsesConfigTest   regras de documentação do OpenAPI, sem contexto Spring

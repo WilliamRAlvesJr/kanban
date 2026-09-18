@@ -1,4 +1,4 @@
-package com.william.kanban.auth;
+package com.william.kanban.controller;
 
 import static com.william.kanban.support.AccountFixture.ANA;
 import static com.william.kanban.support.AccountFixture.ANA_LOGIN;
@@ -17,6 +17,7 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import com.william.kanban.TestcontainersConfiguration;
+import com.william.kanban.dto.auth.LoginRequest;
 import com.william.kanban.support.AccountFixture;
 import com.william.kanban.support.ApiClient;
 import com.william.kanban.support.TableRows;

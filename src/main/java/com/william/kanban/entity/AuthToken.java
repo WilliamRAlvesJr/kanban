@@ -1,4 +1,4 @@
-package com.william.kanban.auth;
+package com.william.kanban.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,7 +11,7 @@ import org.hibernate.generator.EventType;
 
 @Entity
 @Table(name = "auth_tokens")
-class AuthToken {
+public class AuthToken {
 
 	@Id
 	private UUID id;
@@ -29,18 +29,18 @@ class AuthToken {
 	protected AuthToken() {
 	}
 
-	AuthToken(UUID accountId, String tokenHash, OffsetDateTime expiresAt) {
+	public AuthToken(UUID accountId, String tokenHash, OffsetDateTime expiresAt) {
 		this.id = UUID.randomUUID();
 		this.accountId = accountId;
 		this.tokenHash = tokenHash;
 		this.expiresAt = expiresAt;
 	}
 
-	UUID getAccountId() {
+	public UUID getAccountId() {
 		return accountId;
 	}
 
-	OffsetDateTime getExpiresAt() {
+	public OffsetDateTime getExpiresAt() {
 		return expiresAt;
 	}
 

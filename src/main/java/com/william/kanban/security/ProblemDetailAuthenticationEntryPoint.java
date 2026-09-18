@@ -1,4 +1,4 @@
-package com.william.kanban.auth;
+package com.william.kanban.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,10 +22,15 @@ class ProblemDetailAuthenticationEntryPoint implements AuthenticationEntryPoint 
 	}
 
 	@Override
-	public void commence(HttpServletRequest request, HttpServletResponse response,
-			AuthenticationException exception) throws IOException {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
-				"Token ausente, desconhecido ou expirado.");
+	public void commence(
+		HttpServletRequest request,
+		HttpServletResponse response,
+		AuthenticationException exception
+	) throws IOException {
+		var problem = ProblemDetail.forStatusAndDetail(
+			HttpStatus.UNAUTHORIZED,
+			"Token ausente, desconhecido ou expirado."
+		);
 		problem.setInstance(URI.create(request.getRequestURI()));
 		response.setStatus(HttpStatus.UNAUTHORIZED.value());
 		response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);

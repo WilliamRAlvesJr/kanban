@@ -1,8 +1,8 @@
-package com.william.kanban.auth;
+package com.william.kanban.exception;
 
 public class InvalidCredentialsException extends RuntimeException {
 
-	InvalidCredentialsException() {
+	public InvalidCredentialsException() {
 		super("Email ou senha inválidos.");
 	}
 

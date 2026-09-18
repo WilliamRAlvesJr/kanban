@@ -31,6 +31,8 @@ class ArchitectureTest {
 
 	private static final String EXCEPTION = "com.william.kanban.exception..";
 
+	private static final String SECURITY = "com.william.kanban.security..";
+
 	@ArchTest
 	static final ArchRule controllerOnlyAccessesServiceAndDto = layers()
 		.whereLayer("Controller")
@@ -45,6 +47,11 @@ class ArchitectureTest {
 	static final ArchRule mapperOnlyAccessesEntityAndDto = layers()
 		.whereLayer("Mapper")
 		.mayOnlyAccessLayers("Entity", "Dto");
+
+	@ArchTest
+	static final ArchRule securityOnlyAccessesService = layers()
+		.whereLayer("Security")
+		.mayOnlyAccessLayers("Service");
 
 	@ArchTest
 	static final ArchRule entityAndRepositoryStayBehindService = noClasses()
@@ -77,7 +84,9 @@ class ArchitectureTest {
 			.layer("Dto")
 			.definedBy(DTO)
 			.layer("Exception")
-			.definedBy(EXCEPTION);
+			.definedBy(EXCEPTION)
+			.layer("Security")
+			.definedBy(SECURITY);
 	}
 
 }

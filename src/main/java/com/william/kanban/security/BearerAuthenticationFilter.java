@@ -1,5 +1,6 @@
-package com.william.kanban.auth;
+package com.william.kanban.security;
 
+import com.william.kanban.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,19 +25,25 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
 	}
 
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-			FilterChain chain) throws ServletException, IOException {
-		String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+	protected void doFilterInternal(
+		HttpServletRequest request,
+		HttpServletResponse response,
+		FilterChain chain
+	) throws ServletException, IOException {
+		var header = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (header != null && header.startsWith(AuthService.BEARER_PREFIX)) {
-			String token = AuthService.stripBearer(header);
+			var token = AuthService.stripBearer(header);
 			service.resolve(token)
-					.map(accountId -> authenticated(accountId, token))
-					.ifPresent(SecurityContextHolder.getContext()::setAuthentication);
+				.map(accountId -> authenticated(accountId, token))
+				.ifPresent(SecurityContextHolder.getContext()::setAuthentication);
 		}
 		chain.doFilter(request, response);
 	}
 
-	/** O token vai nas credentials: o logout revoga a linha da própria requisição, não toda a conta. */
+	/**
+	 * O token vai nas credentials: o logout revoga a linha da própria requisição, não
+	 * toda a conta.
+	 */
 	private static Authentication authenticated(UUID accountId, String token) {
 		return new UsernamePasswordAuthenticationToken(accountId, token, List.of());
 	}
