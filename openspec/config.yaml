@@ -16,6 +16,13 @@ context: |
   - Cada fato aparece em um lugar só, dentro do artefato e entre artefatos. O design e o tasks não repetem o que a proposal já diz: apontam para ela.
   - O CLAUDE.md é um desses lugares: não repita no artefato stack, comando, convenção, propriedade de configuração nem estado do projeto que ele já registra.
 
+  Prosa dos artefatos (parágrafo, bullet e descrição de task):
+  - Escreva como se fosse falar: frases corridas, uma ideia por frase, dizendo o que a coisa faz.
+  - Comando, flag, caminho de arquivo, query e expressão regular não entram na prosa. Quem implementa tira o comando do CLAUDE.md.
+  - Na primeira menção, classe, método, constante, anotação, arquivo ou ferramenta aparece pela descrição falada, seguida do nome em código entre parênteses: "a fixture de conta (`AccountFixture`)". Nas menções seguintes do mesmo parágrafo ou task, só a descrição.
+  - Endpoint, código de status, campo de JSON e coluna entram pelo nome real, sem descrição falada.
+  - Bloco de código (diff, Mermaid, Gherkin) e tabela ficam fora destas regras e seguem as próprias.
+
   Change de refatoração (não altera comportamento observável da aplicação):
   - O `.openspec.yaml` da change leva `skip_specs: true`, e a change não tem spec delta.
   - A proposal lista em Impact só arquivos e pacotes; What Changes descreve a estrutura nova do código, não comportamento da API.
