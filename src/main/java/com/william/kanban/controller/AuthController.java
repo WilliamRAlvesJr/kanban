@@ -1,5 +1,8 @@
-package com.william.kanban.auth;
+package com.william.kanban.controller;
 
+import com.william.kanban.dto.auth.LoginRequest;
+import com.william.kanban.dto.auth.LoginResponse;
+import com.william.kanban.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
@@ -30,9 +33,11 @@ class AuthController {
 			LoginRequest request
 
 	) {
-		IssuedToken token = service.login(request.email(), request.password());
-		return EntityModel.of(new LoginResponse(token.value(), "Bearer", token.expiresAt()),
-				Link.of("/accounts/me", "me"), Link.of("/auth/logout", "logout"));
+		return EntityModel.of(
+			service.login(request),
+			Link.of("/accounts/me", "me"),
+			Link.of("/auth/logout", "logout")
+		);
 	}
 
 	@PostMapping("/logout")

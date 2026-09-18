@@ -1,9 +1,9 @@
-package com.william.kanban.auth;
+package com.william.kanban.dto.auth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
 
-record LoginResponse(
+public record LoginResponse(
 
 		String token,
 

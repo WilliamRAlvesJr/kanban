@@ -4,8 +4,8 @@ import static com.william.kanban.support.ApiPaths.ACCOUNTS;
 import static com.william.kanban.support.ApiPaths.LOGIN;
 import static org.springframework.http.HttpStatus.CREATED;
 
-import com.william.kanban.auth.LoginRequest;
 import com.william.kanban.dto.account.CreateAccountRequest;
+import com.william.kanban.dto.auth.LoginRequest;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 

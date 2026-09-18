@@ -1,4 +1,4 @@
-package com.william.kanban.auth;
+package com.william.kanban.dto.auth;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 

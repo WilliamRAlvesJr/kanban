@@ -1,4 +1,4 @@
-package com.william.kanban.auth;
+package com.william.kanban.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,24 +22,40 @@ class SecurityConfig {
 	}
 
 	@Bean
-	// sem sessão nem cookie, e o navegador não anexa o Bearer sozinho: não há requisição forjada a barrar
+	// sem sessão nem cookie, e o navegador não anexa o Bearer sozinho: não há requisição
+	// forjada a barrar
 	@SuppressWarnings("java:S4502")
-	SecurityFilterChain filterChain(HttpSecurity http, BearerAuthenticationFilter filter,
-			ProblemDetailAuthenticationEntryPoint entryPoint) {
+	SecurityFilterChain filterChain(
+		HttpSecurity http,
+		BearerAuthenticationFilter filter,
+		ProblemDetailAuthenticationEntryPoint entryPoint
+	) {
 		return http.csrf(CsrfConfigurer::disable)
-				.httpBasic(HttpBasicConfigurer::disable)
-				.formLogin(FormLoginConfigurer::disable)
-				.sessionManagement(
-						session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(requests -> requests
-						.requestMatchers(HttpMethod.GET, "/").permitAll()
-						.requestMatchers(HttpMethod.POST, "/accounts", "/auth/login").permitAll()
-						.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
-						.permitAll()
-						.anyRequest().authenticated())
-				.exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint))
-				.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
-				.build();
+			.httpBasic(HttpBasicConfigurer::disable)
+			.formLogin(FormLoginConfigurer::disable)
+			.sessionManagement(
+				session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+			)
+			.authorizeHttpRequests(
+				requests -> requests
+					.requestMatchers(HttpMethod.GET, "/")
+					.permitAll()
+					.requestMatchers(HttpMethod.POST, "/accounts", "/auth/login")
+					.permitAll()
+					.requestMatchers(
+						"/v3/api-docs/**",
+						"/swagger-ui/**",
+						"/swagger-ui.html"
+					)
+					.permitAll()
+					.anyRequest()
+					.authenticated()
+			)
+			.exceptionHandling(
+				handling -> handling.authenticationEntryPoint(entryPoint)
+			)
+			.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+			.build();
 	}
 
 }
